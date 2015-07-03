@@ -113,7 +113,7 @@ canvasView.addEventListener("wheel", function (e) {
 
 var tick = function () {
     var deltaX = 0, deltaY = 0;
-    var SPEED = 20;
+    var SPEED = 15;
 
     if (keyArrowUp) {
         deltaY += SPEED;
