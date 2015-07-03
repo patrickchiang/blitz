@@ -1,8 +1,13 @@
-var board;
-var scale = 1;
-var lastScale = 1;
-var cameraX = 0;
-var cameraY = 0;
+var board,
+    scale = 1,
+    lastScale = 1,
+    cameraX = 0,
+    cameraY = 0,
+    tickRate = 10,
+    keyArrowUp = false,
+    keyArrowDown = false,
+    keyArrowLeft = false,
+    keyArrowRight = false;
 
 /**
  * Sockets
@@ -106,6 +111,78 @@ canvasView.addEventListener("wheel", function (e) {
 
 }, false);
 
-window.addEventListener('resize', function (event) {
+var tick = function () {
+    var deltaX = 0, deltaY = 0;
+    var SPEED = 20;
+
+    if (keyArrowUp) {
+        deltaY += SPEED;
+    } else if (keyArrowDown) {
+        deltaY -= SPEED;
+    } else if (keyArrowLeft) {
+        deltaX += SPEED;
+    } else if (keyArrowRight) {
+        deltaX -= SPEED;
+    }
+
+    grid.position.x += deltaX;
+    grid.position.y += deltaY;
+    grid.updateTransform();
+
+    renderer.render(stage);
+
+    setTimeout(tick, tickRate);
+};
+
+tick();
+
+document.onkeydown = function (e) {
+
+    switch (e.keyCode) {
+        case 38:
+        case 87:
+            keyArrowUp = true;
+            break;
+        case 40:
+        case 83:
+            keyArrowDown = true;
+            break;
+        case 37:
+        case 65:
+            keyArrowLeft = true;
+            break;
+        case 39:
+        case 68:
+            keyArrowRight = true;
+            break;
+        default:
+            break;
+    }
+};
+
+document.onkeyup = function (e) {
+    switch (e.keyCode) {
+        case 38:
+        case 87:
+            keyArrowUp = false;
+            break;
+        case 40:
+        case 83:
+            keyArrowDown = false;
+            break;
+        case 37:
+        case 65:
+            keyArrowLeft = false;
+            break;
+        case 39:
+        case 68:
+            keyArrowRight = false;
+            break;
+        default:
+            break;
+    }
+}
+
+window.addEventListener('resize', function (e) {
     redrawBoard();
 });
