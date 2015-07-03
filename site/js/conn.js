@@ -123,12 +123,14 @@ var tick = function () {
         deltaX += SPEED;
     } else if (keyArrowRight) {
         deltaX -= SPEED;
+    } else {
+        setTimeout(tick, tickRate);
+        return;
     }
 
     grid.position.x += deltaX;
     grid.position.y += deltaY;
     grid.updateTransform();
-
     renderer.render(stage);
 
     setTimeout(tick, tickRate);
