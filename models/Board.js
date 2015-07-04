@@ -239,6 +239,9 @@ Board.prototype.findNeighbors = function (square) {
 };
 
 Board.prototype.findPath = function (a, b) {
+    a = this.findRootSquare(a);
+    b = this.findRootSquare(b);
+
     // Lee algo for finding shortest path in grid
     a.traversePriority = 0;
 
@@ -255,15 +258,14 @@ Board.prototype.findPath = function (a, b) {
         var neighbors = this.findNeighbors(nodeSquare);
         for (var i = 0; i < neighbors.length; i++) {
             var neighbor = neighbors[i];
-            if (neighbor.traversePriority == -1) {
+            if (neighbor.traversePriority == -1 && a.owner == neighbor.owner) {
                 neighbor.traversePriority = nodeSquare.traversePriority + 1;
                 pathQueue.push(neighbors[i]);
             }
         }
     }
 
-    var priority = b.traversePriority;
-    var path = [], backtrackSquare = b;
+    var priority = b.traversePriority, path = [], backtrackSquare = b;
     // backtrack from b to a
     while (priority > 0) {
         var neighbors = this.findNeighbors(backtrackSquare);
@@ -276,6 +278,11 @@ Board.prototype.findPath = function (a, b) {
                 backtrackSquare = neighbor;
             }
         }
+    }
+
+    // reset the priorities
+    for (var i = 0; i < this.squares.length; i++) {
+        this.squares[i].traversePriority = -1;
     }
 
     console.log(printPath(path));
@@ -291,7 +298,7 @@ function getRandomInt(min, max) {
 
 function printPath(path) {
     var display = '';
-    for (var i = 0; i < path.length; i++) {
+    for (var i = path.length - 1; i >= 0; i--) {
         display += path[i].x + ',' + path[i].y + ' -> ';
     }
     return display + 'end';
