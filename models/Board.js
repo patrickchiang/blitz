@@ -41,11 +41,9 @@ Board.prototype.init = function () {
             removedSquares[j].mainX = candidate.x;
             removedSquares[j].mainY = candidate.y;
             removedSquares[j].mainSize = candidate.size;
-            console.log(candidate.x);
         }
 
         Array.prototype.push.apply(this.aux, removedSquares);
-        console.log('applied');
     }
 
     // and for larges
@@ -77,7 +75,6 @@ Board.prototype.init = function () {
             removedSquares[j].mainX = candidate.x;
             removedSquares[j].mainY = candidate.y;
             removedSquares[j].mainSize = candidate.size;
-            console.log(candidate.x);
         }
 
         Array.prototype.push.apply(this.aux, removedSquares);
@@ -109,7 +106,7 @@ Board.prototype.isValidEnlargement = function (candidate, size) {
     }
 
     return true;
-}
+};
 
 Board.prototype.toString = function () {
     var print = '';
@@ -126,7 +123,7 @@ Board.prototype.toString = function () {
     }
 
     return print;
-}
+};
 
 Board.prototype.squareSize = function (x, y) {
     for (var i = 0; i < this.squares.length; i++) {
@@ -141,7 +138,7 @@ Board.prototype.squareSize = function (x, y) {
         }
     }
     return 0;
-}
+};
 
 Board.prototype.numberOfSquares = function (size) {
     if (!size)
@@ -154,7 +151,34 @@ Board.prototype.numberOfSquares = function (size) {
         }
     }
     return count;
-}
+};
+
+Board.prototype.squareAt = function (x, y) {
+    for (var i = 0; i < this.squares.length; i++) {
+        if (this.squares[i].x == x && this.squares[i].y == y) {
+            return this.squares[i];
+        }
+    }
+
+    for (var i = 0; i < this.aux.length; i++) {
+        if (this.aux[i].x == x && this.aux[i].y == y) {
+            return this.aux[i];
+        }
+    }
+
+    return null;
+};
+
+Board.prototype.auxOf = function (square) {
+    var squares = [];
+    for (var i = 0; i < this.aux.length; i++) {
+        if (this.aux[i].mainX == square.x && this.aux[i].mainY == square.y) {
+            squares.push(this.aux[i]);
+        }
+    }
+
+    return squares;
+};
 
 Board.prototype.isSquareExist = function (x, y) {
     for (var i = 0; i < this.squares.length; i++) {
@@ -171,6 +195,61 @@ Board.prototype.removeSquare = function (x, y) {
             return this.squares.splice(i, 1);
         }
     }
+};
+
+Board.prototype.findRootSquare = function (square) {
+    if (!square.mainX) {
+        return square;
+    }
+
+    return this.squareAt(square.mainX, square.mainY);
+}
+
+Board.prototype.findNeighbors = function (square) {
+    var rootSquare, neighbors = [], checkSquares = [];
+    //if (square.mainX) {
+    //    x = square.mainX;
+    //    y = square.mainY;
+    //} else {
+    //    x = square.x;
+    //    y = square.y;
+    //}
+
+    rootSquare = this.findRootSquare(square)
+
+    // find main square
+    //checkSquares.push(this.squareAt(x, y));
+    checkSquares.push(rootSquare);
+
+    // find all aux
+    Array.prototype.push.apply(checkSquares, this.auxOf(rootSquare));
+
+    console.log(rootSquare);
+    //console.log(this.auxOf(this.squareAt(x, y)));
+    //console.log(checkSquares);
+
+    // check every square in checkSquares
+    for (var i = 0; i < checkSquares.length; i++) {
+        var cs = checkSquares[i];
+
+        var right = this.squareAt(cs.x + 1, cs.y);
+        if (right && !right.sameSquare(cs) && !right.rootInSameArray(neighbors))
+            neighbors.push(this.findRootSquare(right));
+
+        var top = this.squareAt(cs.x, cs.y + 1);
+        if (top && !top.sameSquare(cs) && !top.rootInSameArray(neighbors))
+            neighbors.push(this.findRootSquare(top));
+
+        var left = this.squareAt(cs.x - 1, cs.y);
+        if (left && !left.sameSquare(cs) && !left.rootInSameArray(neighbors))
+            neighbors.push(this.findRootSquare(left));
+
+        var bottom = this.squareAt(cs.x, cs.y - 1);
+        if (bottom && !bottom.sameSquare(cs) && !bottom.rootInSameArray(neighbors))
+            neighbors.push(this.findRootSquare(bottom));
+    }
+
+    return neighbors;
 };
 
 /**

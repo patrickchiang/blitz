@@ -20,9 +20,9 @@ var localUser;
  * Game Init
  */
 
-var board = new Board(40, 40, 50, 5);
+var board = new Board(40, 40, 200, 0);
 board.init();
-console.log('done');
+console.log(board.findNeighbors(board.squares[200]));
 console.log(board.toString());
 
 /**

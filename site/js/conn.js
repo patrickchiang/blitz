@@ -34,7 +34,7 @@ socket.on('send board', function (msgBoard) {
  */
 
 var canvasView = document.getElementById('main');
-var renderer = new PIXI.CanvasRenderer(window.innerWidth, window.innerHeight - 4, {
+var renderer = new PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight - 4, {
     backgroundColor: 0xD7FCFB,
     view: canvasView
 });
@@ -74,10 +74,30 @@ large.endFill();
 var largeTexture = large.generateTexture();
 
 /**
- * Board redrawing
+ * Board drawing
  */
 
 function redrawBoard() {
+    var loader = new PIXI.loaders.Loader();
+    loader.add('Arial', 'fonts/arial-hd.fnt');
+    loader.once('complete', fontLoaded);
+    loader.load();
+    function fontLoaded() {
+        for (var i = 0; i < board.height; i++) {
+            var sideText = new PIXI.extras.BitmapText('' + i, {font: '15px Arial'});
+            grid.addChild(sideText);
+            sideText.position.y = SIZE * (i + 0.5) - 15 / 2;
+            sideText.position.x = -20;
+        }
+
+        for (var i = 0; i < board.width; i++) {
+            var topText = new PIXI.extras.BitmapText('' + i, {font: '15px Arial'});
+            grid.addChild(topText);
+            topText.position.x = SIZE * (i + 0.5) - 15 / 2;
+            topText.position.y = -20;
+        }
+    }
+
     for (var i = 0; i < board.squares.length; i++) {
         var square = board.squares[i];
 
@@ -96,17 +116,17 @@ function redrawBoard() {
 
     }
 
-    for (var i = 0; i < board.aux.length; i++) {
-        var square = board.aux[i];
-
-        var small = new PIXI.Graphics();
-        small.lineStyle(4, 0xFFFFFF, 1);
-        small.beginFill(0xAEEBB8, 1);
-        small.drawRect(SIZE * square.x, SIZE * square.y, SIZE * 1, SIZE * 1);
-        small.endFill();
-
-        grid.addChild(small);
-    }
+    //for (var i = 0; i < board.aux.length; i++) {
+    //    var square = board.aux[i];
+    //
+    //    var small = new PIXI.Graphics();
+    //    small.lineStyle(4, 0xFFFFFF, 1);
+    //    small.beginFill(0xAEEBB8, 1);
+    //    small.drawRect(SIZE * square.x, SIZE * square.y, SIZE * 1, SIZE * 1);
+    //    small.endFill();
+    //
+    //    grid.addChild(small);
+    //}
 
     renderer.render(stage);
 }
