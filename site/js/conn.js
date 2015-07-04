@@ -197,6 +197,7 @@ var tick = function () {
     grid.position.x += deltaX;
     grid.position.y += deltaY;
 
+    // pan limits
     if (grid.position.x <= -board.width * SIZE / scale + window.innerWidth - MARGINS / scale && deltaX < 0) {
         grid.position.x = originalX;
     }
@@ -211,8 +212,10 @@ var tick = function () {
         grid.position.y = originalY;
     }
 
-    grid.updateTransform();
-    renderer.render(stage);
+    if (grid.position.x != originalX || grid.position.y != originalY) {
+        grid.updateTransform();
+        renderer.render(stage);
+    }
 
     setTimeout(tick, tickRate);
 };
