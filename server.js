@@ -22,8 +22,9 @@ var localUser;
 
 var board = new Board(40, 40, 200, 0);
 board.init();
-console.log(board.findNeighbors(board.squares[200]));
+//console.log(board.findNeighbors(board.squares[200]));
 console.log(board.toString());
+board.findPath(board.squares[3], board.squares[570]);
 
 /**
  * Views

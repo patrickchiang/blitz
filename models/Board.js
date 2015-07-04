@@ -206,27 +206,13 @@ Board.prototype.findRootSquare = function (square) {
 }
 
 Board.prototype.findNeighbors = function (square) {
-    var rootSquare, neighbors = [], checkSquares = [];
-    //if (square.mainX) {
-    //    x = square.mainX;
-    //    y = square.mainY;
-    //} else {
-    //    x = square.x;
-    //    y = square.y;
-    //}
-
-    rootSquare = this.findRootSquare(square)
+    var rootSquare = this.findRootSquare(square), neighbors = [], checkSquares = [];
 
     // find main square
-    //checkSquares.push(this.squareAt(x, y));
     checkSquares.push(rootSquare);
 
     // find all aux
     Array.prototype.push.apply(checkSquares, this.auxOf(rootSquare));
-
-    console.log(rootSquare);
-    //console.log(this.auxOf(this.squareAt(x, y)));
-    //console.log(checkSquares);
 
     // check every square in checkSquares
     for (var i = 0; i < checkSquares.length; i++) {
@@ -252,10 +238,61 @@ Board.prototype.findNeighbors = function (square) {
     return neighbors;
 };
 
+Board.prototype.findPath = function (a, b) {
+    // Lee algo for finding shortest path in grid
+    a.traversePriority = 0;
+
+    var pathQueue = [];
+    pathQueue.push(a);
+
+    // mark everything i can get my hands on
+    while (pathQueue.length > 0) {
+        var nodeSquare = pathQueue.shift();
+        if (nodeSquare.equals(b)) {
+            break;
+        }
+
+        var neighbors = this.findNeighbors(nodeSquare);
+        for (var i = 0; i < neighbors.length; i++) {
+            var neighbor = neighbors[i];
+            if (neighbor.traversePriority == -1) {
+                neighbor.traversePriority = nodeSquare.traversePriority + 1;
+                pathQueue.push(neighbors[i]);
+            }
+        }
+    }
+
+    var priority = b.traversePriority;
+    var path = [], backtrackSquare = b;
+    // backtrack from b to a
+    while (priority > 0) {
+        var neighbors = this.findNeighbors(backtrackSquare);
+        var minPriority = b.traversePriority;
+        for (var i = 0; i < neighbors.length; i++) {
+            var neighbor = neighbors[i];
+            if (neighbor.traversePriority == priority - 1) {
+                path.push(neighbor);
+                priority--;
+                backtrackSquare = neighbor;
+            }
+        }
+    }
+
+    console.log(printPath(path));
+};
+
 /**
  * Utilities
  */
 
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function printPath(path) {
+    var display = '';
+    for (var i = 0; i < path.length; i++) {
+        display += path[i].x + ',' + path[i].y + ' -> ';
+    }
+    return display + 'end';
 }
