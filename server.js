@@ -11,20 +11,11 @@ var Board = require('./models/Board.js');
 var User = require('./models/User.js');
 
 /**
- * User Management
- */
-
-var localUser;
-
-/**
  * Game Init
  */
 
-var board = new Board(40, 40, 200, 0);
+var board = new Board(40, 40, 40, 10);
 board.init();
-//console.log(board.findNeighbors(board.squares[200]));
-console.log(board.toString());
-board.findPath(board.squareAt(5, 5), board.squareAt(10, 10));
 
 /**
  * Views
@@ -41,7 +32,7 @@ app.get('/', function (req, res) {
 io.on('connection', function (socket) {
     socket.on('new user', function (msg) {
         var user = new User(msg, socket.id);
-        localUser = user;
+        user.init(board);
 
         socket.emit('send board', board);
         io.sockets.emit('created user', user);

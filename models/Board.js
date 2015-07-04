@@ -17,6 +17,7 @@ Board.prototype.init = function () {
     for (var i = 0; i < this.height; i++) {
         for (var j = 0; j < this.width; j++) {
             var square = new Square(j, i, 1);
+            square.points = getRandomInt(10, 90);
             this.squares.push(square);
         }
     }
@@ -286,6 +287,26 @@ Board.prototype.findPath = function (a, b) {
     }
 
     console.log(printPath(path));
+};
+
+Board.prototype.emptySquares = function () {
+    var empties = [];
+    for (var i = 0; i < this.squares.length; i++) {
+        if (this.squares[i].owner = -1) {
+            empties.push(this.squares[i]);
+        }
+    }
+    return empties;
+};
+
+Board.prototype.randomEmptySquare = function () {
+    var empties = this.emptySquares();
+    if (empties.length == 0) {
+        return null;
+    }
+
+    var index = getRandomInt(0, empties.length);
+    return empties[index];
 };
 
 /**

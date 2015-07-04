@@ -78,23 +78,33 @@ var largeTexture = large.generateTexture();
  */
 
 function redrawBoard() {
+    // Debug grid numbers
     var loader = new PIXI.loaders.Loader();
-    loader.add('Arial', 'fonts/arial-hd.fnt');
-    loader.once('complete', fontLoaded);
+    loader.add('Arial', 'fonts/Arial.fnt');
+    loader.add('ArialBlack', 'fonts/Arial-hd.fnt');
+    loader.once('complete', fontsLoaded);
     loader.load();
-    function fontLoaded() {
+    function fontsLoaded() {
         for (var i = 0; i < board.height; i++) {
-            var sideText = new PIXI.extras.BitmapText('' + i, {font: '15px Arial'});
+            var sideText = new PIXI.extras.BitmapText('' + i, {font: '15px ArialBlack'});
             grid.addChild(sideText);
             sideText.position.y = SIZE * (i + 0.5) - 15 / 2;
             sideText.position.x = -20;
         }
 
         for (var i = 0; i < board.width; i++) {
-            var topText = new PIXI.extras.BitmapText('' + i, {font: '15px Arial'});
+            var topText = new PIXI.extras.BitmapText('' + i, {font: '15px ArialBlack'});
             grid.addChild(topText);
             topText.position.x = SIZE * (i + 0.5) - 15 / 2;
             topText.position.y = -20;
+        }
+
+        for (var i = 0; i < board.squares.length; i++) {
+            var square = board.squares[i];
+            var gridText = new PIXI.extras.BitmapText('' + square.points, {font: '15px Arial'});
+            grid.addChild(gridText);
+            gridText.position.x = SIZE * (square.x + 0.5) - 15 / 2 + (square.size - 1) / 2 * SIZE;
+            gridText.position.y = SIZE * (square.y + 0.5) - 15 / 2 + (square.size - 1) / 2 * SIZE;
         }
     }
 

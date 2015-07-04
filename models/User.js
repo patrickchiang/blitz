@@ -5,3 +5,10 @@ function User(name, id) {
     this.color = 'blue';
     this.id = id;
 };
+
+User.prototype.init = function (board) {
+    // get a square
+    var base = board.randomEmptySquare();
+    base.points = 99;
+    base.owner = this.id;
+};
