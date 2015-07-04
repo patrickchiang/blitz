@@ -292,7 +292,7 @@ Board.prototype.findPath = function (a, b) {
 Board.prototype.emptySquares = function () {
     var empties = [];
     for (var i = 0; i < this.squares.length; i++) {
-        if (this.squares[i].owner = -1) {
+        if (this.squares[i].owner == -1) {
             empties.push(this.squares[i]);
         }
     }
@@ -308,6 +308,15 @@ Board.prototype.randomEmptySquare = function () {
     var index = getRandomInt(0, empties.length);
     return empties[index];
 };
+
+Board.prototype.scrubUser = function (id) {
+    for (var i = 0; i < this.squares.length; i++) {
+        if (this.squares[i].owner == id) {
+            this.squares[i].owner = -1;
+            this.squares[i].points = 0;
+        }
+    }
+}
 
 /**
  * Utilities

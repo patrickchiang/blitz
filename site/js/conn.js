@@ -52,26 +52,32 @@ renderer.render(stage);
 
 var SIZE = 40;
 
-var small = new PIXI.Graphics();
-small.lineStyle(4, 0xFFFFFF, 1);
-small.beginFill(0x858072, 1);
-small.drawRect(0, 0, SIZE * 1, SIZE * 1);
-small.endFill();
-var smallTexture = small.generateTexture();
+function SquareTexture(size, color) {
+    this.size = size;
+    this.color = color;
+}
 
-var medium = new PIXI.Graphics();
-medium.lineStyle(4, 0xFFFFFF, 1);
-medium.beginFill(0x858072, 1);
-medium.drawRect(0, 0, SIZE * 2, SIZE * 2);
-medium.endFill();
-var mediumTexture = medium.generateTexture();
+var smallEmpty = new SquareTexture(1, 0x858072);
+var mediumEmpty = new SquareTexture(2, 0x858072);
+var largeEmpty = new SquareTexture(3, 0x858072);
 
-var large = new PIXI.Graphics();
-large.lineStyle(4, 0xFFFFFF, 1);
-large.beginFill(0x858072, 1);
-large.drawRect(0, 0, SIZE * 3, SIZE * 3);
-large.endFill();
-var largeTexture = large.generateTexture();
+var squareGraphics = [new SquareTexture(1, 0x858072), new SquareTexture(2, 0x858072), new SquareTexture(3, 0x858072),
+    new SquareTexture(1, 636060), new SquareTexture(2, 636060), new SquareTexture(3, 636060)
+];
+
+var squareTextures = [];
+
+for (var i = 0; i < squareGraphics.length; i++) {
+    var square = squareGraphics[i];
+    var graphic = new PIXI.Graphics();
+    graphic.lineStyle(4, 0xFFFFFF, 1);
+    graphic.beginFill(square.color, 1);
+    graphic.drawRect(0, 0, SIZE * square.size, SIZE * square.size);
+    graphic.endFill();
+
+    var texture = graphic.generateTexture();
+    squareTextures.push(texture);
+}
 
 /**
  * Board drawing
@@ -113,12 +119,21 @@ function redrawBoard() {
 
         var sprite;
 
-        if (square.size == 3)
-            sprite = new PIXI.Sprite(largeTexture);
-        else if (square.size == 2)
-            sprite = new PIXI.Sprite(mediumTexture);
-        else
-            sprite = new PIXI.Sprite(smallTexture);
+        if (square.owner === -1) {
+            if (square.size == 3)
+                sprite = new PIXI.Sprite(squareTextures[2]);
+            else if (square.size == 2)
+                sprite = new PIXI.Sprite(squareTextures[1]);
+            else
+                sprite = new PIXI.Sprite(squareTextures[0]);
+        } else {
+            if (square.size == 3)
+                sprite = new PIXI.Sprite(squareTextures[5]);
+            else if (square.size == 2)
+                sprite = new PIXI.Sprite(squareTextures[4]);
+            else
+                sprite = new PIXI.Sprite(squareTextures[3]);
+        }
 
         grid.addChild(sprite);
         sprite.position.x = SIZE * square.x;

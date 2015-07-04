@@ -12,3 +12,7 @@ User.prototype.init = function (board) {
     base.points = 99;
     base.owner = this.id;
 };
+
+User.prototype.destroy = function (board) {
+    board.scrubUser(this.id);
+}
