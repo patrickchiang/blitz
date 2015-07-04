@@ -114,19 +114,15 @@ function redrawBoard() {
         sprite.position.x = SIZE * square.x;
         sprite.position.y = SIZE * square.y;
 
+        sprite.interactive = true;
+        sprite.on('click', squareClicked(square));
     }
 
-    //for (var i = 0; i < board.aux.length; i++) {
-    //    var square = board.aux[i];
-    //
-    //    var small = new PIXI.Graphics();
-    //    small.lineStyle(4, 0xFFFFFF, 1);
-    //    small.beginFill(0xAEEBB8, 1);
-    //    small.drawRect(SIZE * square.x, SIZE * square.y, SIZE * 1, SIZE * 1);
-    //    small.endFill();
-    //
-    //    grid.addChild(small);
-    //}
+    function squareClicked(square) {
+        return function () {
+            console.log(square.x + ', ' + square.y);
+        };
+    }
 
     renderer.render(stage);
 }
@@ -196,8 +192,25 @@ var tick = function () {
         return;
     }
 
+    var originalX = grid.position.x, originalY = grid.position.y, MARGINS = 100;
+
     grid.position.x += deltaX;
     grid.position.y += deltaY;
+
+    if (grid.position.x <= -board.width * SIZE / scale + window.innerWidth - MARGINS / scale && deltaX < 0) {
+        grid.position.x = originalX;
+    }
+    if (grid.position.x >= MARGINS / scale && deltaX > 0) {
+        grid.position.x = originalX;
+    }
+
+    if (grid.position.y <= -board.width * SIZE / scale + window.innerHeight - MARGINS / scale && deltaY < 0) {
+        grid.position.y = originalY;
+    }
+    if (grid.position.y >= MARGINS / scale && deltaY > 0) {
+        grid.position.y = originalY;
+    }
+
     grid.updateTransform();
     renderer.render(stage);
 
