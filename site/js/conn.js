@@ -24,6 +24,7 @@ socket.on('created user', function (user) {
 });
 
 socket.on('send board', function (msgBoard) {
+    console.log(msgBoard);
     board = msgBoard;
     redrawBoard();
 });
@@ -45,19 +46,66 @@ stage.addChild(grid);
 
 renderer.render(stage);
 
-function redrawBoard() {
-    var SIZE = 40;
+/**
+ * Graphics -> Texture
+ */
 
+var SIZE = 40;
+
+var small = new PIXI.Graphics();
+small.lineStyle(4, 0xFFFFFF, 1);
+small.beginFill(0x858072, 1);
+small.drawRect(0, 0, SIZE * 1, SIZE * 1);
+small.endFill();
+var smallTexture = small.generateTexture();
+
+var medium = new PIXI.Graphics();
+medium.lineStyle(4, 0xFFFFFF, 1);
+medium.beginFill(0x858072, 1);
+medium.drawRect(0, 0, SIZE * 2, SIZE * 2);
+medium.endFill();
+var mediumTexture = medium.generateTexture();
+
+var large = new PIXI.Graphics();
+large.lineStyle(4, 0xFFFFFF, 1);
+large.beginFill(0x858072, 1);
+large.drawRect(0, 0, SIZE * 3, SIZE * 3);
+large.endFill();
+var largeTexture = large.generateTexture();
+
+/**
+ * Board redrawing
+ */
+
+function redrawBoard() {
     for (var i = 0; i < board.squares.length; i++) {
         var square = board.squares[i];
 
-        var graphics = new PIXI.Graphics();
-        graphics.lineStyle(4, 0xFFFFFF, 1);
-        graphics.beginFill(square.color, 1);
-        graphics.drawRect(SIZE * square.x, SIZE * square.y, SIZE * square.size, SIZE * square.size);
-        graphics.endFill();
+        var sprite;
 
-        grid.addChild(graphics);
+        if (square.size == 3)
+            sprite = new PIXI.Sprite(largeTexture);
+        else if (square.size == 2)
+            sprite = new PIXI.Sprite(mediumTexture);
+        else
+            sprite = new PIXI.Sprite(smallTexture);
+
+        grid.addChild(sprite);
+        sprite.position.x = SIZE * square.x;
+        sprite.position.y = SIZE * square.y;
+
+    }
+
+    for (var i = 0; i < board.aux.length; i++) {
+        var square = board.aux[i];
+
+        var small = new PIXI.Graphics();
+        small.lineStyle(4, 0xFFFFFF, 1);
+        small.beginFill(0xAEEBB8, 1);
+        small.drawRect(SIZE * square.x, SIZE * square.y, SIZE * 1, SIZE * 1);
+        small.endFill();
+
+        grid.addChild(small);
     }
 
     renderer.render(stage);

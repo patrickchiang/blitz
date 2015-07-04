@@ -10,4 +10,8 @@ function Square(x, y, size) {
     this.owner = 0;
     this.points = 0;
     this.color = colors[Math.floor(Math.random() * colors.length)];
+
+    this.mainX = null;
+    this.mainY = null;
+    this.mainSize = 0;
 };

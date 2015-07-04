@@ -17,20 +17,21 @@ var User = require('./models/User.js');
 var localUser;
 
 /**
+ * Game Init
+ */
+
+var board = new Board(40, 40, 50, 5);
+board.init();
+console.log('done');
+console.log(board.toString());
+
+/**
  * Views
  */
 
 app.get('/', function (req, res) {
     res.sendFile(__dirname + '/site/index.html');
 });
-
-/**
- * Game Init
- */
-
-var board = new Board(40, 40, 50, 10);
-board.init();
-
 
 /**
  * Connection Management

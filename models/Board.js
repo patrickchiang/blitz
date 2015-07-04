@@ -9,6 +9,7 @@ function Board(width, height, mediums, larges) {
     this.larges = larges;
 
     this.squares = [];
+    this.aux = [];
 }
 
 Board.prototype.init = function () {
@@ -29,9 +30,22 @@ Board.prototype.init = function () {
 
         // found valid enlargement candidate
         candidate.size = 2;
-        this.removeSquare(candidate.x + 1, candidate.y);
-        this.removeSquare(candidate.x, candidate.y + 1);
-        this.removeSquare(candidate.x + 1, candidate.y + 1);
+
+        var removedSquares = [];
+
+        removedSquares.push(this.removeSquare(candidate.x + 1, candidate.y)[0],
+            this.removeSquare(candidate.x, candidate.y + 1)[0],
+            this.removeSquare(candidate.x + 1, candidate.y + 1)[0]);
+
+        for (var j = 0; j < removedSquares.length; j++) {
+            removedSquares[j].mainX = candidate.x;
+            removedSquares[j].mainY = candidate.y;
+            removedSquares[j].mainSize = candidate.size;
+            console.log(candidate.x);
+        }
+
+        Array.prototype.push.apply(this.aux, removedSquares);
+        console.log('applied');
     }
 
     // and for larges
@@ -47,14 +61,26 @@ Board.prototype.init = function () {
 
         // found valid enlargement candidate
         candidate.size = 3;
-        this.removeSquare(candidate.x + 1, candidate.y);
-        this.removeSquare(candidate.x + 2, candidate.y);
-        this.removeSquare(candidate.x, candidate.y + 1);
-        this.removeSquare(candidate.x + 1, candidate.y + 1);
-        this.removeSquare(candidate.x + 2, candidate.y + 1);
-        this.removeSquare(candidate.x, candidate.y + 2);
-        this.removeSquare(candidate.x + 1, candidate.y + 2);
-        this.removeSquare(candidate.x + 2, candidate.y + 2);
+
+        var removedSquares = [];
+
+        removedSquares.push(this.removeSquare(candidate.x + 1, candidate.y)[0],
+            this.removeSquare(candidate.x + 2, candidate.y)[0],
+            this.removeSquare(candidate.x, candidate.y + 1)[0],
+            this.removeSquare(candidate.x + 1, candidate.y + 1)[0],
+            this.removeSquare(candidate.x + 2, candidate.y + 1)[0],
+            this.removeSquare(candidate.x, candidate.y + 2)[0],
+            this.removeSquare(candidate.x + 1, candidate.y + 2)[0],
+            this.removeSquare(candidate.x + 2, candidate.y + 2)[0]);
+
+        for (var j = 0; j < removedSquares.length; j++) {
+            removedSquares[j].mainX = candidate.x;
+            removedSquares[j].mainY = candidate.y;
+            removedSquares[j].mainSize = candidate.size;
+            console.log(candidate.x);
+        }
+
+        Array.prototype.push.apply(this.aux, removedSquares);
     }
 };
 
@@ -87,13 +113,14 @@ Board.prototype.isValidEnlargement = function (candidate, size) {
 
 Board.prototype.toString = function () {
     var print = '';
-    for (var i = this.height - 1; i >= 0; i--) {
+    for (var i = 0; i < this.height; i++) {
         for (var j = 0; j < this.width; j++) {
-            if (this.isSquareExist(i, j)) {
-                print += this.squareSize(i, j);
-            } else {
-                print += ' ';
-            }
+            //if (this.isSquareExist(j, i)) {
+            //    print += this.squareSize(j, i);
+            //} else {
+            //    print += ' ';
+            //}
+            print += this.squareSize(j, i);
         }
         print += '\n';
     }
@@ -105,6 +132,12 @@ Board.prototype.squareSize = function (x, y) {
     for (var i = 0; i < this.squares.length; i++) {
         if (this.squares[i].x == x && this.squares[i].y == y) {
             return this.squares[i].size;
+        }
+    }
+
+    for (var i = 0; i < this.aux.length; i++) {
+        if (this.aux[i].x == x && this.aux[i].y == y) {
+            return this.aux[i].mainSize;
         }
     }
     return 0;
@@ -135,8 +168,7 @@ Board.prototype.isSquareExist = function (x, y) {
 Board.prototype.removeSquare = function (x, y) {
     for (var i = 0; i < this.squares.length; i++) {
         if (this.squares[i].x == x && this.squares[i].y == y) {
-            this.squares.splice(i, 1);
-            break;
+            return this.squares.splice(i, 1);
         }
     }
 };
