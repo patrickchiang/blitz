@@ -133,6 +133,21 @@ Board.prototype.findNeighbors = function (square) {
     return neighbors;
 };
 
+Board.prototype.areNeighbors = function (a, b) {
+    if (a.sameSquare(b)) {
+        return false;
+    }
+
+    var neighborsOfA = board.findNeighbors(a);
+    for (var i = 0; i < neighborsOfA.length; i++) {
+        if (neighborsOfA[i].sameSquare(b)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 Board.prototype.findPath = function (a, b) {
     a = this.findRootSquare(a);
     b = this.findRootSquare(b);

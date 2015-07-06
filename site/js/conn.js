@@ -14,7 +14,10 @@ var board,
     keyArrowRight = false,
     selectedSquare = null,
     targetedSquare = null,
-    localUser = null;
+    markedTargets = [],
+    localUser = null,
+    selectRate = 0.5,
+    attackTickRate = 100;
 
 
 /**
@@ -22,26 +25,19 @@ var board,
  */
 
 var soundWeapon = new Howl({
-    src: ['../sounds/P90.wav'],
-    pool: 100
+    src: ['../sounds/P90.wav']
 });
 
-function repeatSound(timesLeft, source, rate, done) {
-    if (timesLeft == 0) {
-        if (done)
-            done();
-        return;
+var soundSelect = new Howl({
+    src: ['../sounds/dryfire.wav']
+});
+
+var soundCancel = new Howl({
+    src: ['../sounds/static.wav'],
+    sprite: {
+        cancel: [2000, 400]
     }
-
-    var shot;
-    shot = source;
-    shot.volume(getRandomInt(0.7, 1));
-    shot.play();
-
-    setTimeout(function () {
-        repeatSound(timesLeft - 1, source, rate, done);
-    }, getRandomInt(60000 / rate - 10, 60000 / rate + 10));
-}
+});
 
 /**
  * Sockets
@@ -114,6 +110,32 @@ for (var i = 0; i < squareGraphics.length; i++) {
     squareTextures.push(texture);
 }
 
+function borderWithColor(color, square) {
+    var graphic = new PIXI.Graphics();
+    graphic.lineStyle(4, color, 1);
+    graphic.drawRect(0, 0, SIZE * square.size, SIZE * square.size);
+
+    var texture = graphic.generateTexture();
+    var sprite = new PIXI.Sprite(texture);
+    return sprite;
+}
+
+function clearBorders() {
+    for (var i = 0; i < markedTargets.length; i++) {
+        grid.removeChild(markedTargets[i]);
+
+        renderer.render(stage);
+    }
+    markedTargets = [];
+}
+
+function redrawGridText(square) {
+    var gridText = square.pointText;
+    gridText.updateTransform();
+    gridText.position.x = SIZE * (square.x + 0.5) - gridText.textWidth / 2 + (square.size - 1) / 2 * SIZE;
+    gridText.position.y = SIZE * (square.y + 0.5) - gridText.textHeight / 2 + (square.size - 1) / 2 * SIZE;
+}
+
 /**
  * Board drawing
  */
@@ -148,17 +170,16 @@ function redrawBoard() {
                 align: 'center',
                 tint: 0x000000
             });
+            square.pointText = gridText;
             grid.addChild(gridText);
 
-            gridText.updateTransform();
-
-            gridText.position.x = SIZE * (square.x + 0.5) - gridText.textWidth / 2 + (square.size - 1) / 2 * SIZE;
-            gridText.position.y = SIZE * (square.y + 0.5) - gridText.textHeight / 2 + (square.size - 1) / 2 * SIZE;
+            redrawGridText(square);
         }
 
         renderer.render(stage);
     }
 
+    // render squares
     for (var i = 0; i < board.squares.length; i++) {
         var square = board.squares[i];
 
@@ -181,6 +202,8 @@ function redrawBoard() {
         }
 
         grid.addChild(sprite);
+        square.sprite = sprite;
+
         sprite.position.x = SIZE * square.x;
         sprite.position.y = SIZE * square.y;
 
@@ -203,20 +226,130 @@ function squareClicked(square) {
             // check if valid selection
             if (clickedSquare.owner == localUser.id) {
                 selectedSquare = clickedSquare;
-                console.log(board.findNeighbors(selectedSquare));
-            }
-        } else if (selectedSquare == clickedSquare) {   // already selected, deselect
-            // check if it's still a valid selection
-            if (clickedSquare.owner == localUser.id) { // valid
-            }
-            selectedSquare = null;
-        } else {    // something else already selected, this is target
-            // check if valid target
+                var neighbors = board.findNeighbors(selectedSquare);
 
-            selectedSquare = null;
-            targetedSquare = clickedSquare;
+                for (var i = 0; i < neighbors.length; i++) {
+                    var neighbor = board.findRootSquare(neighbors[i]);
+                    var borderSprite = borderWithColor(0xFF0000, neighbor);
+
+                    grid.addChild(borderSprite);
+                    markedTargets.push(borderSprite);
+
+                    borderSprite.position.x = SIZE * neighbor.x;
+                    borderSprite.position.y = SIZE * neighbor.y;
+
+                    renderer.render(stage);
+                }
+
+                soundSelect.play();
+            }
+        } else if (selectedSquare.sameSquare(clickedSquare)) {   // already selected, deselect
+            clearBorders();
+
+            // check if it's still yours
+            if (clickedSquare.owner == localUser.id) { // valid
+                selectedSquare = null;
+
+            } else {    // this is now enemy territory
+                selectedSquare = null;
+            }
+        } else {    // something else already selected, this is target
+            clearBorders();
+
+            // make sure this is a neighbor
+            if (board.areNeighbors(selectedSquare, clickedSquare)) {
+                targetedSquare = clickedSquare;
+
+                moveTroops();
+            } else {
+                // play cancel sound
+                soundCancel.play('cancel');
+                targetedSquare = null;
+                selectedSquare = null;
+            }
         }
     };
+}
+
+function moveTroops(done) {
+    // determine amount of troops to move over
+    var troops = Math.ceil(selectedSquare.points * selectRate);
+
+    // assume valid move
+    if (targetedSquare.owner == localUser.id) { // friendly
+    } else {    // enemy
+        attackTick(troops, selectedSquare, targetedSquare);
+    }
+
+    targetedSquare = null;
+    selectedSquare = null;
+}
+
+function attackTick(timesLeft, from, to) {
+    if (timesLeft == 0 || from.points <= 0) {
+        return;
+    }
+
+    // vanquished square
+    if (to.points == 0 || to.owner == localUser.id) {
+        to.owner = localUser.id;
+
+        var sprite = to.sprite;
+        grid.removeChild(sprite);
+
+        if (to.size == 3)
+            sprite = new PIXI.Sprite(squareTextures[5]);
+        else if (to.size == 2)
+            sprite = new PIXI.Sprite(squareTextures[4]);
+        else
+            sprite = new PIXI.Sprite(squareTextures[3]);
+
+        grid.addChildAt(sprite, 0);
+
+        sprite.position.x = SIZE * to.x;
+        sprite.position.y = SIZE * to.y;
+
+        sprite.interactive = true;
+        sprite.on('click', squareClicked(to));
+
+        transferTick(timesLeft, from, to);
+        return;
+    }
+
+    from.points -= 1;
+    to.points -= 1;
+
+    from.pointText.text = from.points;
+    to.pointText.text = to.points;
+    redrawGridText(from);
+    redrawGridText(to);
+
+    renderer.render(stage);
+    soundWeapon.play();
+
+    setTimeout(function () {
+        attackTick(timesLeft - 1, from, to);
+    }, attackTickRate);
+}
+
+function transferTick(timesLeft, from, to) {
+    if (timesLeft == 0 || from.points <= 0) {
+        return;
+    }
+    
+    from.points -= 1;
+    to.points += 1;
+    from.pointText.text = from.points;
+    to.pointText.text = to.points;
+    redrawGridText(from);
+    redrawGridText(to);
+
+    renderer.render(stage);
+    soundSelect.play();
+
+    setTimeout(function () {
+        transferTick(timesLeft - 1, from, to);
+    }, attackTickRate);
 }
 
 canvasView.addEventListener("wheel", function (e) {
