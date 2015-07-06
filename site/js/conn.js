@@ -277,6 +277,7 @@ function moveTroops(done) {
 
     // assume valid move
     if (targetedSquare.owner == localUser.id) { // friendly
+        transferTick(troops, selectedSquare, targetedSquare);
     } else {    // enemy
         attackTick(troops, selectedSquare, targetedSquare);
     }
@@ -336,7 +337,7 @@ function transferTick(timesLeft, from, to) {
     if (timesLeft == 0 || from.points <= 0) {
         return;
     }
-    
+
     from.points -= 1;
     to.points += 1;
     from.pointText.text = from.points;
