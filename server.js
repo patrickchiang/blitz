@@ -37,7 +37,9 @@ io.sockets.on('connection', function (socket) {
         user.init(board);
 
         socket.emit('send board', board);
-        io.sockets.emit('created user', user);
+        socket.emit('send local user', user);
+
+        io.sockets.emit('updated board', board);
 
         users.push(user);
     });

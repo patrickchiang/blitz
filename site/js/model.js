@@ -1,129 +1,23 @@
-module.exports = Board;
-
-var Square = require('./Square.js');
-
-function Board(width, height, mediums, larges) {
-    this.width = width;
-    this.height = height;
-    this.mediums = mediums;
-    this.larges = larges;
+function Board(json) {
+    this.width = json.width;
+    this.height = json.height;
+    this.mediums = json.mediums;
+    this.larges = json.larges;
 
     this.squares = [];
     this.aux = [];
-}
 
-Board.prototype.init = function () {
-    // create all the squares
-    for (var i = 0; i < this.height; i++) {
-        for (var j = 0; j < this.width; j++) {
-            var square = new Square(j, i, 1);
-            square.points = getRandomInt(0, 50);
-            this.squares.push(square);
-        }
+    for (var i = 0; i < json.squares.length; i++) {
+        var squareJSON = json.squares[i];
+        var square = new Square(squareJSON);
+        this.squares.push(square);
     }
 
-    // iterate
-    for (var i = 0; i < this.mediums; i++) {
-        var candidate = this.squares[getRandomInt(0, this.squares.length - 1)];
-        while (!this.isValidEnlargement(candidate, 2)) {
-            candidate = this.squares[getRandomInt(0, this.squares.length - 1)]
-        }
-
-        // found valid enlargement candidate
-        candidate.size = 2;
-
-        var removedSquares = [];
-
-        removedSquares.push(this.removeSquare(candidate.x + 1, candidate.y)[0],
-            this.removeSquare(candidate.x, candidate.y + 1)[0],
-            this.removeSquare(candidate.x + 1, candidate.y + 1)[0]);
-
-        for (var j = 0; j < removedSquares.length; j++) {
-            removedSquares[j].mainX = candidate.x;
-            removedSquares[j].mainY = candidate.y;
-            removedSquares[j].mainSize = candidate.size;
-        }
-
-        Array.prototype.push.apply(this.aux, removedSquares);
+    for (var i = 0; i < json.aux.length; i++) {
+        var auxJSON = json.aux[i];
+        var auxSquares = new Square(auxJSON);
+        this.aux.push(auxSquares);
     }
-
-    // and for larges
-    for (var i = 0; i < this.larges; i++) {
-        var candidate = this.squares[getRandomInt(0, this.squares.length - 1)];
-        while (!this.isValidEnlargement(candidate, 3)) {
-            candidate = this.squares[getRandomInt(0, this.squares.length - 1)]
-        }
-
-        //if (!this.isValidEnlargement(candidate, 2)) {
-        //    continue;
-        //}
-
-        // found valid enlargement candidate
-        candidate.size = 3;
-
-        var removedSquares = [];
-
-        removedSquares.push(this.removeSquare(candidate.x + 1, candidate.y)[0],
-            this.removeSquare(candidate.x + 2, candidate.y)[0],
-            this.removeSquare(candidate.x, candidate.y + 1)[0],
-            this.removeSquare(candidate.x + 1, candidate.y + 1)[0],
-            this.removeSquare(candidate.x + 2, candidate.y + 1)[0],
-            this.removeSquare(candidate.x, candidate.y + 2)[0],
-            this.removeSquare(candidate.x + 1, candidate.y + 2)[0],
-            this.removeSquare(candidate.x + 2, candidate.y + 2)[0]);
-
-        for (var j = 0; j < removedSquares.length; j++) {
-            removedSquares[j].mainX = candidate.x;
-            removedSquares[j].mainY = candidate.y;
-            removedSquares[j].mainSize = candidate.size;
-        }
-
-        Array.prototype.push.apply(this.aux, removedSquares);
-    }
-};
-
-Board.prototype.isValidEnlargement = function (candidate, size) {
-    // top right edges
-    if (this.width - candidate.x <= (size - 1) || this.height - candidate.y <= (size - 1)) {
-        return false;
-    }
-
-    // already enlarged
-    if (candidate.size != 1) {
-        return false;
-    }
-
-    for (var i = 0; i < size; i++) {
-        for (var j = 0; j < size; j++) {
-            // square part of another larger square
-            if (!this.isSquareExist(candidate.x + i, candidate.y + j)) {
-                return false;
-            }
-            // square is another larger square
-            if (this.squareSize(candidate.x + i, candidate.y + j) != 1) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-};
-
-Board.prototype.toString = function () {
-    var print = '';
-    for (var i = 0; i < this.height; i++) {
-        for (var j = 0; j < this.width; j++) {
-            //if (this.isSquareExist(j, i)) {
-            //    print += this.squareSize(j, i);
-            //} else {
-            //    print += ' ';
-            //}
-            print += this.squareSize(j, i);
-        }
-        print += '\n';
-    }
-
-    return print;
 };
 
 Board.prototype.squareSize = function (x, y) {
@@ -204,7 +98,7 @@ Board.prototype.findRootSquare = function (square) {
     }
 
     return this.squareAt(square.mainX, square.mainY);
-}
+};
 
 Board.prototype.findNeighbors = function (square) {
     var rootSquare = this.findRootSquare(square), neighbors = [], checkSquares = [];
@@ -289,34 +183,61 @@ Board.prototype.findPath = function (a, b) {
     console.log(printPath(path));
 };
 
-Board.prototype.emptySmallSquares = function () {
-    var empties = [];
-    for (var i = 0; i < this.squares.length; i++) {
-        if (this.squares[i].owner == -1 && this.squares[i].size == 1) {
-            empties.push(this.squares[i]);
-        }
-    }
-    return empties;
+function Square(json) {
+    this.x = json.x;
+    this.y = json.y;
+    this.size = json.size;
+
+    this.owner = json.owner;
+    this.points = json.points;
+
+    this.mainX = json.mainX;
+    this.mainY = json.mainY;
+    this.mainSize = json.mainSize;
+
+    this.traversePriority = json.traversePriority;
 };
 
-Board.prototype.randomEmptySquare = function () {
-    var empties = this.emptySmallSquares();
-    if (empties.length == 0) {
-        return null;
-    }
-
-    var index = getRandomInt(0, empties.length);
-    return empties[index];
+Square.prototype.equals = function (other) {
+    return this.x == other.x && this.y == other.y;
 };
 
-Board.prototype.scrubUser = function (id) {
-    for (var i = 0; i < this.squares.length; i++) {
-        if (this.squares[i].owner == id) {
-            this.squares[i].owner = -1;
-            this.squares[i].points = 0;
+Square.prototype.sameSquare = function (other) {
+    // if other is null
+    if (other == null) {
+        return false;
+    }
+
+    // Same square
+    if (this.equals(other)) {
+        return true;
+    }
+
+    // One of the squares is the main
+    if (this.x == other.mainX && this.y == other.mainY) {
+        return true;
+    }
+
+    if (this.mainX == other.x && this.mainY == other.y) {
+        return true;
+    }
+
+    // Neither square is main
+    if (this.mainX == other.mainX && this.mainY == other.mainY) {
+        return this.mainX != null;
+    }
+
+    return false;
+};
+
+Square.prototype.rootInSameArray = function (arr) {
+    for (var i = 0; i < arr.length; i++) {
+        if (this.sameSquare(arr[i])) {
+            return true;
         }
     }
-}
+    return false;
+};
 
 /**
  * Utilities

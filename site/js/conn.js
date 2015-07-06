@@ -1,3 +1,7 @@
+/**
+ * vars
+ */
+
 var board,
     scale = 1,
     lastScale = 1,
@@ -7,7 +11,37 @@ var board,
     keyArrowUp = false,
     keyArrowDown = false,
     keyArrowLeft = false,
-    keyArrowRight = false;
+    keyArrowRight = false,
+    selectedSquare = null,
+    targetedSquare = null,
+    localUser = null;
+
+
+/**
+ * Load sound
+ */
+
+var soundWeapon = new Howl({
+    src: ['../sounds/P90.wav'],
+    pool: 100
+});
+
+function repeatSound(timesLeft, source, rate, done) {
+    if (timesLeft == 0) {
+        if (done)
+            done();
+        return;
+    }
+
+    var shot;
+    shot = source;
+    shot.volume(getRandomInt(0.7, 1));
+    shot.play();
+
+    setTimeout(function () {
+        repeatSound(timesLeft - 1, source, rate, done);
+    }, getRandomInt(60000 / rate - 10, 60000 / rate + 10));
+}
 
 /**
  * Sockets
@@ -19,14 +53,19 @@ socket.on('connect', function () {
     socket.emit('new user', 'Patrick');
 });
 
-socket.on('created user', function (user) {
-    console.log(user);
+socket.on('updated board', function (board) {
+    console.log(board);
 });
 
 socket.on('send board', function (msgBoard) {
     console.log(msgBoard);
-    board = msgBoard;
+    board = new Board(msgBoard);
     redrawBoard();
+});
+
+socket.on('send local user', function (user) {
+    localUser = user;
+    console.log(localUser);
 });
 
 /**
@@ -57,12 +96,8 @@ function SquareTexture(size, color) {
     this.color = color;
 }
 
-var smallEmpty = new SquareTexture(1, 0x858072);
-var mediumEmpty = new SquareTexture(2, 0x858072);
-var largeEmpty = new SquareTexture(3, 0x858072);
-
-var squareGraphics = [new SquareTexture(1, 0x858072), new SquareTexture(2, 0x858072), new SquareTexture(3, 0x858072),
-    new SquareTexture(1, 636060), new SquareTexture(2, 636060), new SquareTexture(3, 636060)
+var squareGraphics = [new SquareTexture(1, 0xAEEBB8), new SquareTexture(2, 0xAEEBB8), new SquareTexture(3, 0xAEEBB8),
+    new SquareTexture(1, 0x636060), new SquareTexture(2, 0x636060), new SquareTexture(3, 0x636060)
 ];
 
 var squareTextures = [];
@@ -105,13 +140,23 @@ function redrawBoard() {
             topText.position.y = -20;
         }
 
+        // points text
         for (var i = 0; i < board.squares.length; i++) {
             var square = board.squares[i];
-            var gridText = new PIXI.extras.BitmapText('' + square.points, {font: '15px Arial'});
+            var gridText = new PIXI.extras.BitmapText('' + square.points, {
+                font: '15px Arial',
+                align: 'center',
+                tint: 0x000000
+            });
             grid.addChild(gridText);
-            gridText.position.x = SIZE * (square.x + 0.5) - 15 / 2 + (square.size - 1) / 2 * SIZE;
-            gridText.position.y = SIZE * (square.y + 0.5) - 15 / 2 + (square.size - 1) / 2 * SIZE;
+
+            gridText.updateTransform();
+
+            gridText.position.x = SIZE * (square.x + 0.5) - gridText.textWidth / 2 + (square.size - 1) / 2 * SIZE;
+            gridText.position.y = SIZE * (square.y + 0.5) - gridText.textHeight / 2 + (square.size - 1) / 2 * SIZE;
         }
+
+        renderer.render(stage);
     }
 
     for (var i = 0; i < board.squares.length; i++) {
@@ -143,18 +188,36 @@ function redrawBoard() {
         sprite.on('click', squareClicked(square));
     }
 
-    function squareClicked(square) {
-        return function () {
-            console.log(square.x + ', ' + square.y);
-        };
-    }
-
     renderer.render(stage);
 }
 
 /**
  * Input handling
  */
+
+function squareClicked(square) {
+    return function () {
+        var clickedSquare = board.squareAt(square.x, square.y);
+
+        if (!selectedSquare) {  // nothing selected, select it
+            // check if valid selection
+            if (clickedSquare.owner == localUser.id) {
+                selectedSquare = clickedSquare;
+                console.log(board.findNeighbors(selectedSquare));
+            }
+        } else if (selectedSquare == clickedSquare) {   // already selected, deselect
+            // check if it's still a valid selection
+            if (clickedSquare.owner == localUser.id) { // valid
+            }
+            selectedSquare = null;
+        } else {    // something else already selected, this is target
+            // check if valid target
+
+            selectedSquare = null;
+            targetedSquare = clickedSquare;
+        }
+    };
+}
 
 canvasView.addEventListener("wheel", function (e) {
     e.preventDefault();
@@ -297,3 +360,12 @@ document.onkeyup = function (e) {
 window.addEventListener('resize', function (e) {
     redrawBoard();
 });
+
+
+/**
+ * Utilities
+ */
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
