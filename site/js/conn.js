@@ -17,7 +17,8 @@ var board,
     markedTargets = [],
     localUser = null,
     selectRate = 0.5,
-    attackTickRate = 100;
+    attackTickRate = 100,
+    mouseDownSquare = null;
 
 
 /**
@@ -212,6 +213,8 @@ function redrawBoard() {
 
         sprite.interactive = true;
         sprite.on('click', squareClicked(square));
+        sprite.on('mousedown', squareMouseDown(square));
+        sprite.on('mouseup', squareMouseUp(square));
     }
 
     renderer.render(stage);
@@ -220,6 +223,62 @@ function redrawBoard() {
 /**
  * Input handling
  */
+
+function squareMouseDown(square) {
+    return function () {
+        var clickedSquare = board.squareAt(square.x, square.y);
+        mouseDownSquare = clickedSquare;
+        console.log(square);
+
+        clearBorders();
+        
+        var inRange = board.calculateRange(mouseDownSquare);
+
+        for (var i = 0; i < inRange.length; i++) {
+            var neighbor = board.findRootSquare(inRange[i]);
+            var borderSprite = borderWithColor(0xFF0000, neighbor);
+
+            grid.addChild(borderSprite);
+            markedTargets.push(borderSprite);
+
+            borderSprite.position.x = SIZE * neighbor.x;
+            borderSprite.position.y = SIZE * neighbor.y;
+
+            renderer.render(stage);
+        }
+
+        soundSelect.play();
+    };
+}
+
+function squareMouseUp(square) {
+    return function () {
+        var clickedSquare = board.squareAt(square.x, square.y);
+        if (mouseDownSquare && mouseDownSquare.sameSquare(clickedSquare)) {
+            return;
+        }
+
+        console.log(mouseDownSquare);
+        if (mouseDownSquare.owner != localUser.id) {
+            return;
+        }
+
+        clearBorders();
+
+        // make sure this is in range
+        if (board.isInRange(mouseDownSquare, clickedSquare)) {
+            var distance = board.findPath(mouseDownSquare, clickedSquare).length;
+            moveTroops(distance, mouseDownSquare, clickedSquare);
+        } else {
+            // play cancel sound
+            soundCancel.play('cancel');
+        }
+
+        targetedSquare = null;
+        selectedSquare = null;
+        mouseDownSquare = null;
+    };
+}
 
 function squareClicked(square) {
     return function () {
@@ -265,41 +324,39 @@ function squareClicked(square) {
             if (board.isInRange(selectedSquare, clickedSquare)) {
                 targetedSquare = clickedSquare;
                 var distance = board.findPath(selectedSquare, targetedSquare).length;
-                moveTroops(distance);
+                moveTroops(distance, selectedSquare, targetedSquare);
             } else {
                 // play cancel sound
                 soundCancel.play('cancel');
-                targetedSquare = null;
-                selectedSquare = null;
             }
+
+            targetedSquare = null;
+            selectedSquare = null;
         }
     };
 }
 
-function moveTroops(distance) {
+function moveTroops(distance, from, to) {
     // determine amount of troops to move over
-    var troops = Math.ceil(selectedSquare.points * selectRate);
+    var troops = Math.ceil(from.points * selectRate);
 
-    if (!selectedSquare.moving) {
-        selectedSquare.moving = [targetedSquare];
-    } else if (!targetedSquare.rootInSameArray(selectedSquare.moving)) {
-        selectedSquare.moving.push(targetedSquare);
+    if (!from.moving) {
+        from.moving = [to];
+    } else if (!to.rootInSameArray(from.moving)) {
+        from.moving.push(to);
     } else {
-        targetedSquare = null;
-        selectedSquare = null;
+        to = null;
+        from = null;
         return;
     }
 
 
     // assume valid move
-    if (targetedSquare.owner == localUser.id) { // friendly
-        transferTick(troops, selectedSquare, targetedSquare, attackTickRate * Math.sqrt(distance));
+    if (to.owner == localUser.id) { // friendly
+        transferTick(troops, from, to, attackTickRate * Math.sqrt(distance));
     } else {    // enemy
-        attackTick(troops, selectedSquare, targetedSquare, attackTickRate * Math.sqrt(distance));
+        attackTick(troops, from, to, attackTickRate * Math.sqrt(distance));
     }
-
-    targetedSquare = null;
-    selectedSquare = null;
 }
 
 function attackTick(timesLeft, from, to, rate) {
@@ -333,6 +390,8 @@ function attackTick(timesLeft, from, to, rate) {
 
         sprite.interactive = true;
         sprite.on('click', squareClicked(to));
+        sprite.on('mousedown', squareMouseDown(to));
+        sprite.on('mouseup', squareMouseUp(to));
 
         transferTick(timesLeft, from, to, rate);
         return;
