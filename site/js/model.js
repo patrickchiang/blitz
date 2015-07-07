@@ -133,6 +133,40 @@ Board.prototype.findNeighbors = function (square) {
     return neighbors;
 };
 
+Board.prototype.calculateRange = function (square) {
+    this.inRange = [];
+
+    this.findInRange(square);
+
+    return this.inRange;
+};
+
+Board.prototype.findInRange = function (square) {
+    var neighbors = this.findNeighbors(square);
+    for (var i = 0; i < neighbors.length; i++) {
+        if (!neighbors[i].rootInSameArray(this.inRange)) {
+            this.inRange.push(neighbors[i]);
+            if (neighbors[i].owner == square.owner)
+                this.findInRange(neighbors[i]);
+        }
+    }
+};
+
+Board.prototype.isInRange = function (a, b) {
+    if (a.sameSquare(b)) {
+        return false;
+    }
+
+    var rangeOfA = board.calculateRange(a);
+    for (var i = 0; i < rangeOfA.length; i++) {
+        if (rangeOfA[i].sameSquare(b)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 Board.prototype.areNeighbors = function (a, b) {
     if (a.sameSquare(b)) {
         return false;
@@ -161,7 +195,9 @@ Board.prototype.findPath = function (a, b) {
     // mark everything i can get my hands on
     while (pathQueue.length > 0) {
         var nodeSquare = pathQueue.shift();
-        if (nodeSquare.equals(b)) {
+
+        if (this.areNeighbors(nodeSquare, b)) {
+            b.traversePriority = nodeSquare.traversePriority + 1;
             break;
         }
 
@@ -186,6 +222,7 @@ Board.prototype.findPath = function (a, b) {
                 path.push(neighbor);
                 priority--;
                 backtrackSquare = neighbor;
+                break;
             }
         }
     }
@@ -195,7 +232,7 @@ Board.prototype.findPath = function (a, b) {
         this.squares[i].traversePriority = -1;
     }
 
-    console.log(printPath(path));
+    return path;
 };
 
 function Square(json) {

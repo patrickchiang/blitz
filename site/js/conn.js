@@ -25,18 +25,21 @@ var board,
  */
 
 var soundWeapon = new Howl({
-    src: ['../sounds/P90.wav']
+    src: ['../sounds/P90.wav'],
+    volume: 0.05
 });
 
 var soundSelect = new Howl({
-    src: ['../sounds/dryfire.wav']
+    src: ['../sounds/dryfire.wav'],
+    volume: 0.05
 });
 
 var soundCancel = new Howl({
     src: ['../sounds/static.wav'],
     sprite: {
         cancel: [2000, 400]
-    }
+    },
+    volume: 0.1
 });
 
 /**
@@ -226,10 +229,12 @@ function squareClicked(square) {
             // check if valid selection
             if (clickedSquare.owner == localUser.id) {
                 selectedSquare = clickedSquare;
-                var neighbors = board.findNeighbors(selectedSquare);
+                //var neighbors = board.findNeighbors(selectedSquare);
 
-                for (var i = 0; i < neighbors.length; i++) {
-                    var neighbor = board.findRootSquare(neighbors[i]);
+                var inRange = board.calculateRange(selectedSquare);
+
+                for (var i = 0; i < inRange.length; i++) {
+                    var neighbor = board.findRootSquare(inRange[i]);
                     var borderSprite = borderWithColor(0xFF0000, neighbor);
 
                     grid.addChild(borderSprite);
@@ -256,11 +261,11 @@ function squareClicked(square) {
         } else {    // something else already selected, this is target
             clearBorders();
 
-            // make sure this is a neighbor
-            if (board.areNeighbors(selectedSquare, clickedSquare)) {
+            // make sure this is in range
+            if (board.isInRange(selectedSquare, clickedSquare)) {
                 targetedSquare = clickedSquare;
-
-                moveTroops();
+                var distance = board.findPath(selectedSquare, targetedSquare).length;
+                moveTroops(distance);
             } else {
                 // play cancel sound
                 soundCancel.play('cancel');
@@ -271,28 +276,44 @@ function squareClicked(square) {
     };
 }
 
-function moveTroops(done) {
+function moveTroops(distance) {
     // determine amount of troops to move over
     var troops = Math.ceil(selectedSquare.points * selectRate);
 
+    if (!selectedSquare.moving) {
+        selectedSquare.moving = [targetedSquare];
+    } else if (!targetedSquare.rootInSameArray(selectedSquare.moving)) {
+        selectedSquare.moving.push(targetedSquare);
+    } else {
+        targetedSquare = null;
+        selectedSquare = null;
+        return;
+    }
+
+
     // assume valid move
     if (targetedSquare.owner == localUser.id) { // friendly
-        transferTick(troops, selectedSquare, targetedSquare);
+        transferTick(troops, selectedSquare, targetedSquare, attackTickRate * Math.sqrt(distance));
     } else {    // enemy
-        attackTick(troops, selectedSquare, targetedSquare);
+        attackTick(troops, selectedSquare, targetedSquare, attackTickRate * Math.sqrt(distance));
     }
 
     targetedSquare = null;
     selectedSquare = null;
 }
 
-function attackTick(timesLeft, from, to) {
+function attackTick(timesLeft, from, to, rate) {
     if (timesLeft == 0 || from.points <= 0) {
+        for (var i = 0; i < from.moving.length; i++) {
+            if (from.moving[i].sameSquare(to)) {
+                from.moving.splice(i, 1);
+            }
+        }
         return;
     }
 
     // vanquished square
-    if (to.points == 0 || to.owner == localUser.id) {
+    if (to.points == 0 || to.owner == from.owner) {
         to.owner = localUser.id;
 
         var sprite = to.sprite;
@@ -313,7 +334,7 @@ function attackTick(timesLeft, from, to) {
         sprite.interactive = true;
         sprite.on('click', squareClicked(to));
 
-        transferTick(timesLeft, from, to);
+        transferTick(timesLeft, from, to, rate);
         return;
     }
 
@@ -329,13 +350,22 @@ function attackTick(timesLeft, from, to) {
     soundWeapon.play();
 
     setTimeout(function () {
-        attackTick(timesLeft - 1, from, to);
-    }, attackTickRate);
+        attackTick(timesLeft - 1, from, to, rate);
+    }, rate);
 }
 
-function transferTick(timesLeft, from, to) {
+function transferTick(timesLeft, from, to, rate) {
     if (timesLeft == 0 || from.points <= 0) {
+        for (var i = 0; i < from.moving.length; i++) {
+            if (from.moving[i].sameSquare(to)) {
+                from.moving.splice(i, 1);
+            }
+        }
         return;
+    }
+
+    if (to.owner != from.owner) {
+        attackTick(timesLeft, from, to, rate);
     }
 
     from.points -= 1;
@@ -349,8 +379,8 @@ function transferTick(timesLeft, from, to) {
     soundSelect.play();
 
     setTimeout(function () {
-        transferTick(timesLeft - 1, from, to);
-    }, attackTickRate);
+        transferTick(timesLeft - 1, from, to, rate);
+    }, rate);
 }
 
 canvasView.addEventListener("wheel", function (e) {
@@ -492,6 +522,7 @@ document.onkeyup = function (e) {
 }
 
 window.addEventListener('resize', function (e) {
+    // redraw canvas
     redrawBoard();
 });
 
