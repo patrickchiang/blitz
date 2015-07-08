@@ -297,7 +297,7 @@ Square.prototype.rootInSameArray = function (arr) {
 
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+};
 
 function printPath(path) {
     var display = '';
@@ -305,4 +305,4 @@ function printPath(path) {
         display += path[i].x + ',' + path[i].y + ' -> ';
     }
     return display + 'end';
-}
+};

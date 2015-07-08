@@ -52,8 +52,8 @@ socket.on('connect', function () {
     socket.emit('new user', 'Patrick');
 });
 
-socket.on('updated board', function (board) {
-    console.log(board);
+socket.on('updated board', function (msg) {
+
 });
 
 socket.on('send board', function (msgBoard) {
@@ -369,9 +369,10 @@ function moveTroops(distance, from, to) {
         return;
     }
 
+    socket.emit('move', {distance: distance, from: {x: from.x, y: from.y}, to: {x: to.x, y: to.y}, troops: troops});
 
     // assume valid move
-    if (to.owner == localUser.id) { // friendly
+    if (to.owner == from.owner) { // friendly
         transferTick(troops, from, to, attackTickRate * Math.sqrt(distance));
     } else {    // enemy
         attackTick(troops, from, to, attackTickRate * Math.sqrt(distance));
@@ -390,7 +391,7 @@ function attackTick(timesLeft, from, to, rate) {
 
     // vanquished square
     if (to.points == 0 || to.owner == from.owner) {
-        to.owner = localUser.id;
+        to.owner = from.owner;
 
         var sprite = to.sprite;
         grid.removeChild(sprite);
