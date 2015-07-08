@@ -9,10 +9,13 @@ function User(name, id, color) {
 User.prototype.init = function (board) {
     // get a square
     var base = board.randomEmptySquare();
+
     base.points = 99;
     base.owner = this.id;
+
+    return base;
 };
 
 User.prototype.destroy = function (board) {
-    board.scrubUser(this.id);
+    return board.scrubUser(this.id);
 }

@@ -362,12 +362,14 @@ Board.prototype.randomEmptySquare = function () {
 };
 
 Board.prototype.scrubUser = function (id) {
+    var scrubs = [];
     for (var i = 0; i < this.squares.length; i++) {
         if (this.squares[i].owner == id) {
+            scrubs.push(this.squares[i]);
             this.squares[i].owner = -1;
-            this.squares[i].points = 0;
         }
     }
+    return scrubs;
 };
 
 /**

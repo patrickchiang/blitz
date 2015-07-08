@@ -47,13 +47,14 @@ io.sockets.on('connection', function (socket) {
         userColors.push(userColors.shift());
 
         var user = new User(msg, socket.id, userColors[0]);
-        user.init(board);
+        var base = user.init(board);
         users.push(user);
 
         socket.emit('send board', board);
-        socket.emit('send users', {users: users, local: user});
+        socket.emit('send local user', user);
+        io.sockets.emit('send users', users);
 
-        io.sockets.emit('updated board', board);
+        updateSquare(base);
     });
 
     socket.on('move', function (msg) {
@@ -61,6 +62,8 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('disconnect', function () {
+        console.log('disconnect');
+
         var user;
         for (var i = 0; i < users.length; i++) {
             if (users[i].id == socket.id) {
@@ -68,7 +71,12 @@ io.sockets.on('connection', function (socket) {
             }
         }
         if (user) {
-            user.destroy(board);
+            var scrubs = user.destroy(board);
+
+            for (var i = 0; i < scrubs.length; i++) {
+                updateSquare(scrubs[i]);
+            }
+
             var index = users.indexOf(user);
             if (index > -1) {
                 users.splice(index, 1);
@@ -79,86 +87,161 @@ io.sockets.on('connection', function (socket) {
 });
 
 setInterval(function () {
-    console.log(updateQueue);
-}, 10);
+    if (updateQueue.squares.length > 0) {
+        io.sockets.emit('update board', {squares: updateQueue.squares});
+        console.log('updating');
+        updateQueue.squares = [];
+    }
+}, 50);
+
+setInterval(function () {
+    io.sockets.emit('send squares', board.squares);
+}, 5000);
 
 /**
  * Game Moves
  */
 
 function moveTroops(distance, from, to, troops) {
-    // determine amount of troops to move over
+    // make sure only moving from tile to tile once
     if (!from.moving) {
         from.moving = [to];
     } else if (!to.rootInSameArray(from.moving)) {
         from.moving.push(to);
     } else {
-        to = null;
-        from = null;
         return;
     }
 
     // assume valid move
     if (to.owner == from.owner) { // friendly
-        transferTick(troops, from, to, attackTickRate * Math.sqrt(distance));
+        transfer(troops, from, to, attackTickRate * (distance));
     } else {    // enemy
-        attackTick(troops, from, to, attackTickRate * Math.sqrt(distance));
+        //attackTick(troops, from, to, attackTickRate * Math.sqrt(distance));
+        attack(troops, from, to, attackTickRate * (distance));
     }
 }
 
-function attackTick(timesLeft, from, to, rate) {
-    if (timesLeft == 0 || from.points <= 0) {
-        for (var i = 0; i < from.moving.length; i++) {
-            if (from.moving[i].sameSquare(to)) {
-                from.moving.splice(i, 1);
+function attack(times, from, to, rate) {
+    var startTime = new Date().getTime();
+    var fromPoints = from.points;
+    var toPoints = to.points;
+    var lastTickElapsed = 0;
+
+    var timer = setInterval(function () {
+        var timeElapsed = new Date().getTime() - startTime;
+        var ticksElapsed = Math.floor(timeElapsed / rate);
+
+        if (ticksElapsed > times)
+            ticksElapsed = times;
+
+        while (ticksElapsed - lastTickElapsed > 0) {
+
+            if (from.points <= 0) {
+                for (var i = 0; i < from.moving.length; i++) {
+                    if (from.moving[i].sameSquare(to)) {
+                        from.moving.splice(i, 1);
+                    }
+                }
+
+                updateSquare(from);
+                updateSquare(to);
+
+                clearInterval(timer);
+                return;
+            }
+
+            if (from.owner == to.owner) {
+                clearInterval(timer);
+                transfer(times - ticksElapsed + 1, from, to, rate);
+                return;
+            }
+
+            // vanquished square
+            if (to.points == 0) {
+                to.owner = from.owner;
+                updateSquare(to);
+                clearInterval(timer);
+                transfer(times - ticksElapsed + 1, from, to, rate);
+                return;
+            }
+
+            from.points += lastTickElapsed - ticksElapsed;
+            to.points += lastTickElapsed - ticksElapsed;
+
+            updateSquare(from);
+            updateSquare(to);
+
+            lastTickElapsed++;
+        }
+
+        if (ticksElapsed >= times) {
+            clearInterval(timer);
+            for (var i = 0; i < from.moving.length; i++) {
+                if (from.moving[i].sameSquare(to)) {
+                    from.moving.splice(i, 1);
+                }
             }
         }
-        return;
-    }
-
-    // vanquished square
-    if (to.points == 0 || to.owner == from.owner) {
-        to.owner = from.owner;
-        updateQueue.squares.push({x: to.x, y: to.y, points: to.points, owner: to.owner});
-
-        transferTick(timesLeft, from, to, rate);
-        return;
-    }
-
-    from.points -= 1;
-    to.points -= 1;
-
-    updateQueue.squares.push({x: from.x, y: from.y, points: from.points, owner: from.owner});
-    updateQueue.squares.push({x: to.x, y: to.y, points: to.points, owner: to.owner});
-
-    setTimeout(function () {
-        attackTick(timesLeft - 1, from, to, rate);
-    }, rate);
+    }, 10);
 }
 
-function transferTick(timesLeft, from, to, rate) {
-    if (timesLeft == 0 || from.points <= 0) {
-        for (var i = 0; i < from.moving.length; i++) {
-            if (from.moving[i].sameSquare(to)) {
-                from.moving.splice(i, 1);
+function transfer(times, from, to, rate) {
+    var startTime = new Date().getTime();
+    var fromPoints = from.points;
+    var toPoints = to.points;
+    var lastTickElapsed = 0;
+
+    var timer = setInterval(function () {
+        var timeElapsed = new Date().getTime() - startTime;
+        var ticksElapsed = Math.floor(timeElapsed / rate);
+
+        if (ticksElapsed > times)
+            ticksElapsed = times;
+
+        while (ticksElapsed - lastTickElapsed > 0) {
+
+            if (from.points <= 0) {
+                for (var i = 0; i < from.moving.length; i++) {
+                    if (from.moving[i].sameSquare(to)) {
+                        from.moving.splice(i, 1);
+                    }
+                }
+
+                updateSquare(from);
+                updateSquare(to);
+
+                clearInterval(timer);
+                return;
+            }
+
+            if (from.owner != to.owner) {
+                clearInterval(timer);
+                attack(times - ticksElapsed + 1, from, to, rate);
+                return;
+            }
+
+            from.points += lastTickElapsed - ticksElapsed;
+            to.points -= lastTickElapsed - ticksElapsed;
+
+            updateSquare(from);
+            updateSquare(to);
+
+            lastTickElapsed++;
+        }
+
+        if (ticksElapsed >= times) {
+            clearInterval(timer);
+            for (var i = 0; i < from.moving.length; i++) {
+                if (from.moving[i].sameSquare(to)) {
+                    from.moving.splice(i, 1);
+                }
             }
         }
-        return;
-    }
+    }, 10);
+}
 
-    if (to.owner != from.owner) {
-        attackTick(timesLeft, from, to, rate);
-    }
-
-    from.points -= 1;
-    to.points += 1;
-
-    updateQueue.squares.push({x: from.x, y: from.y, points: from.points, owner: from.owner});
-    updateQueue.squares.push({x: to.x, y: to.y, points: to.points, owner: to.owner});
-
-    setTimeout(function () {
-        transferTick(timesLeft - 1, from, to, rate);
-    }, rate);
+function updateSquare(square) {
+    updateQueue.squares.push({x: square.x, y: square.y, points: square.points, owner: square.owner});
 }
 
 /**
