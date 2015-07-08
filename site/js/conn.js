@@ -5,13 +5,12 @@
 var board,
     scale = 1,
     lastScale = 1,
-    cameraX = 0,
-    cameraY = 0,
     tickRate = 10,
     keyArrowUp = false,
     keyArrowDown = false,
     keyArrowLeft = false,
     keyArrowRight = false,
+    user = [],
     selectedSquare = null,
     targetedSquare = null,
     markedTargets = [],
@@ -63,9 +62,12 @@ socket.on('send board', function (msgBoard) {
     redrawBoard();
 });
 
-socket.on('send local user', function (user) {
-    localUser = user;
-    console.log(localUser);
+socket.on('send users', function (reply) {
+    localUser = reply.local;
+    users = reply.users;
+    console.log(users);
+
+    updateUsers();
 });
 
 /**
@@ -96,33 +98,55 @@ function SquareTexture(size, color) {
     this.color = color;
 }
 
-var squareGraphics = [new SquareTexture(1, 0xAEEBB8), new SquareTexture(2, 0xAEEBB8), new SquareTexture(3, 0xAEEBB8),
-    new SquareTexture(1, 0x636060), new SquareTexture(2, 0x636060), new SquareTexture(3, 0x636060)
-];
+var squareGraphics, squareTextures = {};
 
-var squareTextures = [];
+function updateUsers() {
+    squareTextures = {};
 
-for (var i = 0; i < squareGraphics.length; i++) {
-    var square = squareGraphics[i];
+    squareGraphics = {
+        smallEmpty: new SquareTexture(1, 0xD7FCFB),
+        mediumEmpty: new SquareTexture(2, 0xD7FCFB),
+        largeEmpty: new SquareTexture(3, 0xD7FCFB)
+    };
+
+    for (var i = 0; i < users.length; i++) {
+        var user = users[i];
+        squareGraphics['small' + user.id] = new SquareTexture(1, user.color);
+        squareGraphics['medium' + user.id] = new SquareTexture(2, user.color);
+        squareGraphics['large' + user.id] = new SquareTexture(3, user.color);
+    }
+
+    console.log(squareGraphics);
+
+    for (var key in squareGraphics) {
+        if (squareGraphics.hasOwnProperty(key)) {
+            var square = squareGraphics[key];
+            var graphic = new PIXI.Graphics();
+            graphic.lineStyle(4, 0xFFFFFF, 1);
+            graphic.beginFill(square.color, 1);
+            graphic.drawRect(0, 0, SIZE * square.size, SIZE * square.size);
+            graphic.endFill();
+
+            var texture = graphic.generateTexture();
+            squareTextures[key] = texture;
+        }
+    }
+
+    redrawBoard();
+};
+
+function tintSquareInside(color, square, alpha) {
     var graphic = new PIXI.Graphics();
-    graphic.lineStyle(4, 0xFFFFFF, 1);
-    graphic.beginFill(square.color, 1);
-    graphic.drawRect(0, 0, SIZE * square.size, SIZE * square.size);
+    //graphic.lineStyle(0, color, 1);
+    graphic.beginFill(color, alpha);
+    graphic.drawRect(0, 0, SIZE * square.size - 4, SIZE * square.size - 4);
     graphic.endFill();
 
-    var texture = graphic.generateTexture();
-    squareTextures.push(texture);
-}
-
-function borderWithColor(color, square) {
-    var graphic = new PIXI.Graphics();
-    graphic.lineStyle(4, color, 1);
-    graphic.drawRect(0, 0, SIZE * square.size, SIZE * square.size);
 
     var texture = graphic.generateTexture();
     var sprite = new PIXI.Sprite(texture);
     return sprite;
-}
+};
 
 function clearBorders() {
     for (var i = 0; i < markedTargets.length; i++) {
@@ -131,14 +155,15 @@ function clearBorders() {
         renderer.render(stage);
     }
     markedTargets = [];
-}
+};
 
 function redrawGridText(square) {
     var gridText = square.pointText;
     gridText.updateTransform();
     gridText.position.x = SIZE * (square.x + 0.5) - gridText.textWidth / 2 + (square.size - 1) / 2 * SIZE;
     gridText.position.y = SIZE * (square.y + 0.5) - gridText.textHeight / 2 + (square.size - 1) / 2 * SIZE;
-}
+    gridText.updateTransform();
+};
 
 /**
  * Board drawing
@@ -169,6 +194,10 @@ function redrawBoard() {
         // points text
         for (var i = 0; i < board.squares.length; i++) {
             var square = board.squares[i];
+
+            if (square.pointText)
+                grid.removeChild(square.pointText);
+
             var gridText = new PIXI.extras.BitmapText('' + square.points, {
                 font: '15px Arial',
                 align: 'center',
@@ -191,18 +220,18 @@ function redrawBoard() {
 
         if (square.owner === -1) {
             if (square.size == 3)
-                sprite = new PIXI.Sprite(squareTextures[2]);
+                sprite = new PIXI.Sprite(squareTextures['largeEmpty']);
             else if (square.size == 2)
-                sprite = new PIXI.Sprite(squareTextures[1]);
+                sprite = new PIXI.Sprite(squareTextures['mediumEmpty']);
             else
-                sprite = new PIXI.Sprite(squareTextures[0]);
+                sprite = new PIXI.Sprite(squareTextures['smallEmpty']);
         } else {
             if (square.size == 3)
-                sprite = new PIXI.Sprite(squareTextures[5]);
+                sprite = new PIXI.Sprite(squareTextures['large' + square.owner]);
             else if (square.size == 2)
-                sprite = new PIXI.Sprite(squareTextures[4]);
+                sprite = new PIXI.Sprite(squareTextures['medium' + square.owner]);
             else
-                sprite = new PIXI.Sprite(squareTextures[3]);
+                sprite = new PIXI.Sprite(squareTextures['small' + square.owner]);
         }
 
         grid.addChild(sprite);
@@ -228,21 +257,29 @@ function squareMouseDown(square) {
     return function () {
         var clickedSquare = board.squareAt(square.x, square.y);
         mouseDownSquare = clickedSquare;
-        console.log(square);
+
+        if (selectedSquare || clickedSquare.owner != localUser.id) {
+            return;
+        }
 
         clearBorders();
-        
+
         var inRange = board.calculateRange(mouseDownSquare);
 
         for (var i = 0; i < inRange.length; i++) {
             var neighbor = board.findRootSquare(inRange[i]);
-            var borderSprite = borderWithColor(0xFF0000, neighbor);
+            var borderSprite;
+
+            if (neighbor.sameSquare(mouseDownSquare))
+                borderSprite = tintSquareInside(0xFFFFFF, mouseDownSquare, 0.7);
+            else
+                borderSprite = tintSquareInside(localUser.color, neighbor, 0.5);
 
             grid.addChild(borderSprite);
             markedTargets.push(borderSprite);
 
-            borderSprite.position.x = SIZE * neighbor.x;
-            borderSprite.position.y = SIZE * neighbor.y;
+            borderSprite.position.x = SIZE * neighbor.x + 4;
+            borderSprite.position.y = SIZE * neighbor.y + 4;
 
             renderer.render(stage);
         }
@@ -288,24 +325,6 @@ function squareClicked(square) {
             // check if valid selection
             if (clickedSquare.owner == localUser.id) {
                 selectedSquare = clickedSquare;
-                //var neighbors = board.findNeighbors(selectedSquare);
-
-                var inRange = board.calculateRange(selectedSquare);
-
-                for (var i = 0; i < inRange.length; i++) {
-                    var neighbor = board.findRootSquare(inRange[i]);
-                    var borderSprite = borderWithColor(0xFF0000, neighbor);
-
-                    grid.addChild(borderSprite);
-                    markedTargets.push(borderSprite);
-
-                    borderSprite.position.x = SIZE * neighbor.x;
-                    borderSprite.position.y = SIZE * neighbor.y;
-
-                    renderer.render(stage);
-                }
-
-                soundSelect.play();
             }
         } else if (selectedSquare.sameSquare(clickedSquare)) {   // already selected, deselect
             clearBorders();
@@ -377,11 +396,11 @@ function attackTick(timesLeft, from, to, rate) {
         grid.removeChild(sprite);
 
         if (to.size == 3)
-            sprite = new PIXI.Sprite(squareTextures[5]);
+            sprite = new PIXI.Sprite(squareTextures['large' + from.owner]);
         else if (to.size == 2)
-            sprite = new PIXI.Sprite(squareTextures[4]);
+            sprite = new PIXI.Sprite(squareTextures['medium' + from.owner]);
         else
-            sprite = new PIXI.Sprite(squareTextures[3]);
+            sprite = new PIXI.Sprite(squareTextures['small' + from.owner]);
 
         grid.addChildAt(sprite, 0);
 
@@ -429,6 +448,7 @@ function transferTick(timesLeft, from, to, rate) {
 
     from.points -= 1;
     to.points += 1;
+
     from.pointText.text = from.points;
     to.pointText.text = to.points;
     redrawGridText(from);

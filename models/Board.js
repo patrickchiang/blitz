@@ -316,7 +316,7 @@ Board.prototype.scrubUser = function (id) {
             this.squares[i].points = 0;
         }
     }
-}
+};
 
 /**
  * Utilities

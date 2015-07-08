@@ -134,7 +134,7 @@ Board.prototype.findNeighbors = function (square) {
 };
 
 Board.prototype.calculateRange = function (square) {
-    this.inRange = [];
+    this.inRange = [square];
 
     this.findInRange(square);
 

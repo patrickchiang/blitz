@@ -1,8 +1,8 @@
 module.exports = User;
 
-function User(name, id) {
+function User(name, id, color) {
     this.name = name;
-    this.color = 'blue';
+    this.color = color;
     this.id = id;
 };
 
