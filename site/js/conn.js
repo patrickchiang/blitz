@@ -1,40 +1,63 @@
 /**
- * vars
+ * Global variables
  */
 
+// Game state
 var board,
-    scale = 1,
+    user = [],
+    localUser;
+
+// Movement Controls
+var scale = 1,
     lastScale = 1,
-    tickRate = 10,
+    movementRate = 10,
     keyArrowUp = false,
     keyArrowDown = false,
     keyArrowLeft = false,
     keyArrowRight = false,
-    user = [],
-    selectedSquare = null,
-    targetedSquare = null,
-    markedTargets = [],
-    localUser = null,
-    selectRate = 0.5,
-    attackTickRate = 100,
-    mouseDownSquare = null;
+    movementTick;
 
+// Selection Controls
+var selectedSquare,
+    targetedSquare,
+    markedTargets = [],
+    mouseDownSquare;
+
+// Action Controls
+var selectTroopRate = 0.5,
+    troopMovementTime = 100;
+
+// Settings
+var gridDrawn = false,
+    gridSize = 40;
+
+// Sounds
+var soundWeapon, soundSelect, soundCancel;
+
+// Board Visuals
+var canvasView, renderer, stage, grid;
+
+// Socket
+var socket;
+
+// Graphics & Texture
+var squareGraphics, squareTextures = {};
 
 /**
  * Load sound
  */
 
-var soundWeapon = new Howl({
+soundWeapon = new Howl({
     src: ['../sounds/P90.wav'],
     volume: 0.05
 });
 
-var soundSelect = new Howl({
+soundSelect = new Howl({
     src: ['../sounds/dryfire.wav'],
     volume: 0.05
 });
 
-var soundCancel = new Howl({
+soundCancel = new Howl({
     src: ['../sounds/static.wav'],
     sprite: {
         cancel: [2000, 400]
@@ -47,15 +70,15 @@ var soundCancel = new Howl({
  * Board rendering
  */
 
-var canvasView = document.getElementById('main');
-var renderer = new PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight - 4, {
+canvasView = document.getElementById('main');
+renderer = new PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight - 4, {
     backgroundColor: 0xD7FCFB,
     view: canvasView
 });
 document.body.appendChild(renderer.view);
 
-var stage = new PIXI.Container();
-var grid = new PIXI.Container();
+stage = new PIXI.Container();
+grid = new PIXI.Container();
 stage.addChild(grid);
 
 renderer.render(stage);
@@ -64,7 +87,7 @@ renderer.render(stage);
  * Sockets
  */
 
-var socket = io();
+socket = io();
 
 socket.on('connect', function () {
     socket.emit('new user', 'Patrick');
@@ -75,32 +98,28 @@ socket.on('update board', function (msg) {
         return;
 
     if (msg.squares) {
-        for (var i = 0; i < msg.squares.length; i++) {
-            var square = msg.squares[i];
+        msg.squares.forEach(function (square) {
             var squareToUpdate = board.squareAt(square.x, square.y);
 
             if (squareToUpdate.owner != square.owner) {
                 squareToUpdate.owner = square.owner;
-                squareToUpdate.sprite = redrawSquareOwner(squareToUpdate);
-                console.log(square.owner + ' --- ' + square.x);
+                redrawSquareOwner(squareToUpdate);
             }
 
             squareToUpdate.points = square.points;
             if (squareToUpdate.pointText)
                 redrawGridText(squareToUpdate);
-        }
+        });
 
         renderer.render(stage);
     }
 });
 
 socket.on('send squares', function (msg) {
-    for (var i = 0; i < board.squares.length; i++) {
-        var square = board.squares[i];
-
+    board.squares.forEach(function (square, i) {
         if (square.owner != msg[i].owner) {
             square.owner = msg[i].owner;
-            square.sprite = redrawSquareOwner(square);
+            redrawSquareOwner(square);
         }
 
         if (square.points != msg[i].points) {
@@ -108,7 +127,7 @@ socket.on('send squares', function (msg) {
             if (square.pointText)
                 redrawGridText(square);
         }
-    }
+    });
 
     renderer.render(stage);
 });
@@ -132,14 +151,10 @@ socket.on('send users', function (msg) {
  * Graphics -> Texture
  */
 
-var SIZE = 40;
-
 function SquareTexture(size, color) {
     this.size = size;
     this.color = color;
 }
-
-var squareGraphics, squareTextures = {};
 
 function updateUsers() {
     squareTextures = {};
@@ -150,12 +165,11 @@ function updateUsers() {
         largeEmpty: new SquareTexture(3, 0xD7FCFB)
     };
 
-    for (var i = 0; i < users.length; i++) {
-        var user = users[i];
+    users.forEach(function (user) {
         squareGraphics['small' + user.id] = new SquareTexture(1, user.color);
         squareGraphics['medium' + user.id] = new SquareTexture(2, user.color);
         squareGraphics['large' + user.id] = new SquareTexture(3, user.color);
-    }
+    });
 
     for (var key in squareGraphics) {
         if (squareGraphics.hasOwnProperty(key)) {
@@ -163,47 +177,44 @@ function updateUsers() {
             var graphic = new PIXI.Graphics();
             graphic.lineStyle(4, 0xCCCCCC, 1);
             graphic.beginFill(square.color, 1);
-            graphic.drawRect(0, 0, SIZE * square.size, SIZE * square.size);
+            graphic.drawRect(0, 0, gridSize * square.size, gridSize * square.size);
             graphic.endFill();
 
-            var texture = graphic.generateTexture();
-            squareTextures[key] = texture;
+            squareTextures[key] = graphic.generateTexture();
         }
     }
 
     redrawBoard();
-};
+}
 
 function tintSquareInside(color, square, alpha) {
     var graphic = new PIXI.Graphics();
     //graphic.lineStyle(0, color, 1);
     graphic.beginFill(color, alpha);
-    graphic.drawRect(0, 0, SIZE * square.size - 4, SIZE * square.size - 4);
+    graphic.drawRect(0, 0, gridSize * square.size - 4, gridSize * square.size - 4);
     graphic.endFill();
 
 
     var texture = graphic.generateTexture();
-    var sprite = new PIXI.Sprite(texture);
-    return sprite;
-};
+    return new PIXI.Sprite(texture);
+}
 
 function clearBorders() {
-    for (var i = 0; i < markedTargets.length; i++) {
-        grid.removeChild(markedTargets[i]);
-
-        renderer.render(stage);
-    }
+    markedTargets.forEach(function (e) {
+        grid.removeChild(e);
+    });
     markedTargets = [];
-};
+    renderer.render(stage);
+}
 
 function redrawGridText(square) {
     var gridText = square.pointText;
     gridText.text = square.points;
     gridText.updateTransform();
-    gridText.position.x = SIZE * (square.x + 0.5) - gridText.textWidth / 2 + (square.size - 1) / 2 * SIZE;
-    gridText.position.y = SIZE * (square.y + 0.5) - gridText.textHeight / 2 + (square.size - 1) / 2 * SIZE;
+    gridText.position.x = gridSize * (square.x + 0.5) - gridText.textWidth / 2 + (square.size - 1) / 2 * gridSize;
+    gridText.position.y = gridSize * (square.y + 0.5) - gridText.textHeight / 2 + (square.size - 1) / 2 * gridSize;
     gridText.updateTransform();
-};
+}
 
 function redrawSquareOwner(square) {
     var sprite = square.sprite;
@@ -228,15 +239,15 @@ function redrawSquareOwner(square) {
 
     grid.addChildAt(sprite, 0);
 
-    sprite.position.x = SIZE * square.x;
-    sprite.position.y = SIZE * square.y;
+    sprite.position.x = gridSize * square.x;
+    sprite.position.y = gridSize * square.y;
 
     sprite.interactive = true;
     sprite.on('click', squareClicked(square));
     sprite.on('mousedown', squareMouseDown(square));
     sprite.on('mouseup', squareMouseUp(square));
 
-    return sprite;
+    square.sprite = sprite;
 }
 
 /**
@@ -250,56 +261,68 @@ function redrawBoard() {
     // Debug grid numbers
     var loader = new PIXI.loaders.Loader();
     loader.add('Arial', 'fonts/Arial.fnt');
-    loader.add('ArialBlack', 'fonts/Arial-hd.fnt');
     loader.once('complete', fontsLoaded);
     loader.load();
     function fontsLoaded() {
-        for (var i = 0; i < board.height; i++) {
-            var sideText = new PIXI.extras.BitmapText('' + i, {font: '15px ArialBlack'});
-            grid.addChild(sideText);
-            sideText.position.y = SIZE * (i + 0.5) - 15 / 2;
-            sideText.position.x = -40;
+        if (!gridDrawn) {
+            (function drawSideNumbers() {
+                for (var i = 0; i < board.height; i++) {
+                    var sideText = new PIXI.extras.BitmapText('' + i, {
+                        font: '15px Arial',
+                        align: 'center',
+                        tint: 0x000000
+                    });
+                    grid.addChild(sideText);
+                    sideText.position.y = gridSize * (i + 0.5) - 15 / 2;
+                    sideText.position.x = -40;
+                }
+            })();
+
+            (function drawTopNumbers() {
+                for (var i = 0; i < board.width; i++) {
+                    var topText = new PIXI.extras.BitmapText('' + i, {
+                        font: '15px Arial',
+                        align: 'center',
+                        tint: 0x000000
+                    });
+                    grid.addChild(topText);
+                    topText.position.x = gridSize * (i + 0.5) - 15 / 2;
+                    topText.position.y = -40;
+                }
+            })();
+
+            gridDrawn = true;
         }
 
-        for (var i = 0; i < board.width; i++) {
-            var topText = new PIXI.extras.BitmapText('' + i, {font: '15px ArialBlack'});
-            grid.addChild(topText);
-            topText.position.x = SIZE * (i + 0.5) - 15 / 2;
-            topText.position.y = -40;
-        }
-
-        // points text
-        for (var i = 0; i < board.squares.length; i++) {
-            var square = board.squares[i];
-
+        // Draw squares' points
+        board.squares.forEach(function (square) {
             if (square.pointText)
                 grid.removeChild(square.pointText);
 
             var gridText = new PIXI.extras.BitmapText('' + square.points, {
                 font: '15px Arial',
                 align: 'center',
-                tint: 0x000000
+                tint: 0xFFFFF
             });
             square.pointText = gridText;
             grid.addChild(gridText);
 
             redrawGridText(square);
-        }
+        });
 
         renderer.render(stage);
     }
 
-    // render squares
-    for (var i = 0; i < board.squares.length; i++) {
-        var square = board.squares[i];
-        square.sprite = redrawSquareOwner(square);
-    }
+    // Render squares
+    board.squares.forEach(function (square) {
+        redrawSquareOwner(square);
+    });
 
     renderer.render(stage);
 }
 
 /**
- * Input handling
+ * Input Actions
  */
 
 function squareMouseDown(square) {
@@ -315,8 +338,8 @@ function squareMouseDown(square) {
 
         var inRange = board.calculateRange(mouseDownSquare);
 
-        for (var i = 0; i < inRange.length; i++) {
-            var neighbor = board.findRootSquare(inRange[i]);
+        inRange.forEach(function (e) {
+            var neighbor = board.findRootSquare(e);
             var borderSprite;
 
             if (neighbor.sameSquare(mouseDownSquare))
@@ -327,11 +350,12 @@ function squareMouseDown(square) {
             grid.addChild(borderSprite);
             markedTargets.push(borderSprite);
 
-            borderSprite.position.x = SIZE * neighbor.x + 4;
-            borderSprite.position.y = SIZE * neighbor.y + 4;
+            borderSprite.position.x = gridSize * neighbor.x + 4;
+            borderSprite.position.y = gridSize * neighbor.y + 4;
 
             renderer.render(stage);
-        }
+
+        });
 
         soundSelect.play();
     };
@@ -405,7 +429,7 @@ function squareClicked(square) {
 
 function moveTroops(distance, from, to) {
     // determine amount of troops to move over
-    var troops = Math.ceil(from.points * selectRate);
+    var troops = Math.ceil(from.points * selectTroopRate);
 
     if (!from.moving) {
         from.moving = [to];
@@ -425,9 +449,9 @@ function moveTroops(distance, from, to) {
 
     // assume valid move
     if (to.owner == from.owner) { // friendly
-        transfer(troops, from, to, attackTickRate * (distance));
+        transfer(troops, from, to, troopMovementTime * Math.sqrt(distance));
     } else {    // enemy
-        attack(troops, from, to, attackTickRate * (distance));
+        attack(troops, from, to, troopMovementTime * Math.sqrt(distance));
     }
 
     socket.emit('move', {distance: distance, from: {x: from.x, y: from.y}, to: {x: to.x, y: to.y}, troops: troops});
@@ -447,11 +471,11 @@ function attack(times, from, to, rate) {
         while (ticksElapsed - lastTickElapsed > 0) {
 
             if (from.points <= 0) {
-                for (var i = 0; i < from.moving.length; i++) {
-                    if (from.moving[i].sameSquare(to)) {
+                from.moving.forEach(function (e, i) {
+                    if (e.sameSquare(to)) {
                         from.moving.splice(i, 1);
                     }
-                }
+                });
 
                 clearInterval(timer);
                 return;
@@ -490,11 +514,11 @@ function attack(times, from, to, rate) {
 
         if (ticksElapsed >= times) {
             clearInterval(timer);
-            for (var i = 0; i < from.moving.length; i++) {
-                if (from.moving[i].sameSquare(to)) {
+            from.moving.forEach(function (e, i) {
+                if (e.sameSquare(to)) {
                     from.moving.splice(i, 1);
                 }
-            }
+            });
         }
     }, 10);
 }
@@ -512,11 +536,11 @@ function transfer(times, from, to, rate) {
 
         while (ticksElapsed - lastTickElapsed > 0) {
             if (from.points <= 0) {
-                for (var i = 0; i < from.moving.length; i++) {
-                    if (from.moving[i].sameSquare(to)) {
+                from.moving.forEach(function (e, i) {
+                    if (e.sameSquare(to)) {
                         from.moving.splice(i, 1);
                     }
-                }
+                });
 
                 clearInterval(timer);
                 return;
@@ -542,14 +566,18 @@ function transfer(times, from, to, rate) {
 
         if (ticksElapsed >= times) {
             clearInterval(timer);
-            for (var i = 0; i < from.moving.length; i++) {
-                if (from.moving[i].sameSquare(to)) {
+            from.moving.forEach(function (e, i) {
+                if (e.sameSquare(to)) {
                     from.moving.splice(i, 1);
                 }
-            }
+            });
         }
     }, 10);
 }
+
+/**
+ * Input Movement
+ */
 
 canvasView.addEventListener("wheel", function (e) {
     e.preventDefault();
@@ -595,7 +623,7 @@ canvasView.addEventListener("wheel", function (e) {
 
 }, false);
 
-var tick = function () {
+movementTick = function () {
     var deltaX = 0, deltaY = 0;
     var SPEED = 15;
 
@@ -608,7 +636,7 @@ var tick = function () {
     } else if (keyArrowRight) {
         deltaX -= SPEED;
     } else {
-        setTimeout(tick, tickRate);
+        setTimeout(movementTick, movementRate);
         return;
     }
 
@@ -618,14 +646,14 @@ var tick = function () {
     grid.position.y += deltaY;
 
     // pan limits
-    if (grid.position.x <= -board.width * SIZE / scale + window.innerWidth - MARGINS / scale && deltaX < 0) {
+    if (grid.position.x <= -board.width * gridSize / scale + window.innerWidth - MARGINS / scale && deltaX < 0) {
         grid.position.x = originalX;
     }
     if (grid.position.x >= MARGINS / scale && deltaX > 0) {
         grid.position.x = originalX;
     }
 
-    if (grid.position.y <= -board.width * SIZE / scale + window.innerHeight - MARGINS / scale && deltaY < 0) {
+    if (grid.position.y <= -board.width * gridSize / scale + window.innerHeight - MARGINS / scale && deltaY < 0) {
         grid.position.y = originalY;
     }
     if (grid.position.y >= MARGINS / scale && deltaY > 0) {
@@ -637,10 +665,10 @@ var tick = function () {
         renderer.render(stage);
     }
 
-    setTimeout(tick, tickRate);
+    setTimeout(movementTick, movementRate);
 };
 
-tick();
+movementTick();
 
 document.onkeydown = function (e) {
 
@@ -687,13 +715,13 @@ document.onkeyup = function (e) {
         default:
             break;
     }
-}
+};
 
 function incomeClock() {
     var startTime = new Date().getTime();
     var lastTickElapsed = 0;
 
-    var timer = setInterval(function () {
+    setInterval(function () {
         var timeElapsed = new Date().getTime() - startTime;
         var ticksElapsed = Math.floor(timeElapsed / 1000);
 
@@ -706,21 +734,14 @@ function incomeClock() {
             lastTickElapsed++;
         }
 
-        for (var i = 0; i < incomeSquares.length; i++)
-            redrawGridText(incomeSquares[i]);
+        incomeSquares.forEach(function (e) {
+            redrawGridText(e);
+        });
+
         renderer.render(stage);
     }, 500);
-};
-
-window.addEventListener('resize', function (e) {
-    // redraw canvas
-    redrawBoard();
-});
-
-/**
- * Utilities
- */
-
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+window.addEventListener('resize', function () {
+    renderer.resize(window.innerWidth, window.innerHeight - 4);
+});

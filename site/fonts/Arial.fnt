@@ -1,6 +1,6 @@
 <?xml version='1.0'?>
    <font>
-       <info aa='1' size='11' smooth='1' stretchH='100' bold='0' padding='0,0,0,0' spacing='0,0' charset='' italic='0' unicode='0' face='ArialBlack'/>
+       <info aa='1' size='11' smooth='1' stretchH='100' bold='0' padding='0,0,0,0' spacing='0,0' charset='' italic='0' unicode='0' face='Arial'/>
        <common scaleW='128' packed='0' pages='1' lineHeight='13' scaleH='128' base='11'/>
        <pages>
             <page id='0' file='Arial.png'/>

@@ -6,7 +6,6 @@ var express = require('express');
 var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
-var randomColor = require('randomcolor');
 
 var Board = require('./models/Board.js');
 var User = require('./models/User.js');
@@ -62,20 +61,19 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('disconnect', function () {
-        console.log('disconnect');
-
         var user;
-        for (var i = 0; i < users.length; i++) {
-            if (users[i].id == socket.id) {
-                user = users[i];
-            }
-        }
+
+        users.forEach(function (e) {
+            if (e.id === socket.id)
+                user = e;
+        });
+
         if (user) {
             var scrubs = user.destroy(board);
 
-            for (var i = 0; i < scrubs.length; i++) {
-                updateSquare(scrubs[i]);
-            }
+            scrubs.forEach(function (e) {
+                updateSquare(e);
+            });
 
             var index = users.indexOf(user);
             if (index > -1) {
@@ -85,6 +83,10 @@ io.sockets.on('connection', function (socket) {
         }
     });
 });
+
+/**
+ * Update ticks for pushing out update
+ */
 
 setInterval(function () {
     if (updateQueue.squares.length > 0) {
@@ -101,15 +103,17 @@ setInterval(function () {
 setInterval(function () {
     if (board) {
         var cleanSquares = [];
-        for (var i = 0; i < board.squares.length; i++) {
-            cleanSquares.push(cleanSquare(board.squares[i]));
-        }
+
+        board.squares.forEach(function (e) {
+            cleanSquares.push(cleanSquare(e));
+        });
+
         io.sockets.emit('send squares', cleanSquares);
     }
 }, 5000);
 
 /**
- * Game Moves
+ * Moves
  */
 
 function moveTroops(distance, from, to, troops) {
@@ -129,11 +133,10 @@ function moveTroops(distance, from, to, troops) {
     }
 
     // assume valid move
-    if (to.owner == from.owner) { // friendly
-        transfer(troops, from, to, attackTickRate * (distance));
+    if (to.owner === from.owner) { // friendly
+        transfer(troops, from, to, attackTickRate * Math.sqrt(distance));
     } else {    // enemy
-        //attackTick(troops, from, to, attackTickRate * Math.sqrt(distance));
-        attack(troops, from, to, attackTickRate * (distance));
+        attack(troops, from, to, attackTickRate * Math.sqrt(distance));
     }
 }
 
@@ -150,11 +153,11 @@ function attack(times, from, to, rate) {
 
         while (ticksElapsed - lastTickElapsed > 0) {
             if (from.points <= 0) {
-                for (var i = 0; i < from.moving.length; i++) {
-                    if (from.moving[i].sameSquare(to)) {
+                from.moving.forEach(function (e, i) {
+                    if (e.sameSquare(to)) {
                         from.moving.splice(i, 1);
                     }
-                }
+                });
 
                 updateSquare(from);
                 updateSquare(to);
@@ -163,14 +166,14 @@ function attack(times, from, to, rate) {
                 return;
             }
 
-            if (from.owner == to.owner) {
+            if (from.owner === to.owner) {
                 clearInterval(timer);
                 transfer(times - ticksElapsed + 1, from, to, rate);
                 return;
             }
 
             // vanquished square
-            if (to.points == 0) {
+            if (to.points === 0) {
                 to.owner = from.owner;
                 updateSquare(to);
                 clearInterval(timer);
@@ -189,11 +192,11 @@ function attack(times, from, to, rate) {
 
         if (ticksElapsed >= times) {
             clearInterval(timer);
-            for (var i = 0; i < from.moving.length; i++) {
-                if (from.moving[i].sameSquare(to)) {
+            from.moving.forEach(function (e, i) {
+                if (e.sameSquare(to)) {
                     from.moving.splice(i, 1);
                 }
-            }
+            });
         }
     }, 10);
 }
@@ -212,11 +215,11 @@ function transfer(times, from, to, rate) {
         while (ticksElapsed - lastTickElapsed > 0) {
 
             if (from.points <= 0) {
-                for (var i = 0; i < from.moving.length; i++) {
-                    if (from.moving[i].sameSquare(to)) {
+                from.moving.forEach(function (e, i) {
+                    if (e.sameSquare(to)) {
                         from.moving.splice(i, 1);
                     }
-                }
+                });
 
                 updateSquare(from);
                 updateSquare(to);
@@ -242,14 +245,18 @@ function transfer(times, from, to, rate) {
 
         if (ticksElapsed >= times) {
             clearInterval(timer);
-            for (var i = 0; i < from.moving.length; i++) {
-                if (from.moving[i].sameSquare(to)) {
+            from.moving.forEach(function (e, i) {
+                if (e.sameSquare(to)) {
                     from.moving.splice(i, 1);
                 }
-            }
+            });
         }
     }, 10);
 }
+
+/**
+ * For pushing into the update queue
+ */
 
 function updateSquare(square) {
     updateQueue.squares.push(cleanSquare(square));
