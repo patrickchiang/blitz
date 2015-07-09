@@ -116,6 +116,9 @@ socket.on('update board', function (msg) {
 });
 
 socket.on('send squares', function (msg) {
+    if (!board || !board.squares)
+        return;
+
     board.squares.forEach(function (square, i) {
         if (square.owner != msg[i].owner) {
             square.owner = msg[i].owner;
@@ -140,6 +143,39 @@ socket.on('send board', function (msg) {
 
 socket.on('send local user', function (msg) {
     localUser = msg;
+
+    // find your square
+    board.squares.forEach(function (e) {
+        if (e.owner == localUser.id) {
+            grid.position.x = -e.x * gridSize + window.innerWidth / 2;
+            grid.position.y = -e.y * gridSize + window.innerHeight / 2;
+            grid.updateTransform();
+
+            scale = 0.5
+            grid.scale.x = 1 / scale;
+            grid.scale.y = 1 / scale;
+            var interactionData = new PIXI.interaction.InteractionData();
+
+            var x = window.innerWidth / 2;
+            var y = window.innerHeight / 2;
+
+            // initial context
+            interactionData.global = new PIXI.Point(x, y);
+            var beforeTransform = interactionData.getLocalPosition(grid);
+
+            grid.updateTransform();
+            interactionData.global = new PIXI.Point(x, y);
+            var afterTransform = interactionData.getLocalPosition(grid, new PIXI.Point(x, y));
+
+            // transform
+            grid.position.x += (afterTransform.x - beforeTransform.x) * grid.scale.x;
+            grid.position.y += (afterTransform.y - beforeTransform.y) * grid.scale.y;
+
+            grid.updateTransform();
+            renderer.render(stage);
+        }
+    });
+
 });
 
 socket.on('send users', function (msg) {

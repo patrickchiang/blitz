@@ -52,7 +52,7 @@ Square.prototype.rootInSameArray = function (arr) {
         if (this.sameSquare(e)) {
             return true;
         }
-    });
+    }, this);
 
     return false;
 };
