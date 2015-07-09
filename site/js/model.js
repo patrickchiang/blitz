@@ -1,3 +1,7 @@
+/**
+ * Board model
+ */
+
 function Board(json) {
     this.width = json.width;
     this.height = json.height;
@@ -8,32 +12,63 @@ function Board(json) {
     this.squares = [];
     this.aux = [];
 
-    for (var i = 0; i < json.squares.length; i++) {
-        var squareJSON = json.squares[i];
-        var square = new Square(squareJSON);
+    json.squares.forEach(function (e) {
+        var square = new Square(e);
         this.squares.push(square);
+    }, this);
+
+    json.aux.forEach(function (e) {
+        var auxSquares = new Square(e);
+        this.aux.push(auxSquares);
+    }, this);
+}
+
+/**
+ * Square Handling
+ */
+
+Board.prototype.auxOf = function (square) {
+    var squares = [];
+    for (var i = 0; i < this.aux.length; i++) {
+        if (this.aux[i].mainX == square.x && this.aux[i].mainY == square.y) {
+            squares.push(this.aux[i]);
+        }
     }
 
-    for (var i = 0; i < json.aux.length; i++) {
-        var auxJSON = json.aux[i];
-        var auxSquares = new Square(auxJSON);
-        this.aux.push(auxSquares);
-    }
+    return squares;
 };
 
-Board.prototype.squareSize = function (x, y) {
+Board.prototype.findRootSquare = function (square) {
+    if (!square.mainX) {
+        return square;
+    }
+
+    return this.squareAt(square.mainX, square.mainY);
+};
+
+Board.prototype.incomeTick = function () {
+    var incomeSquares = [];
+
     for (var i = 0; i < this.squares.length; i++) {
-        if (this.squares[i].x == x && this.squares[i].y == y) {
-            return this.squares[i].size;
+        var square = this.squares[i];
+        var income = square.size * square.size * this.speed;
+
+        if (square.owner != -1) {
+            square.points += income;
+            incomeSquares.push(square);
         }
     }
 
-    for (var i = 0; i < this.aux.length; i++) {
-        if (this.aux[i].x == x && this.aux[i].y == y) {
-            return this.aux[i].mainSize;
+    return incomeSquares;
+};
+
+Board.prototype.isSquareExist = function (x, y) {
+    for (var i = 0; i < this.squares.length; i++) {
+        if (this.squares[i].x == x && this.squares[i].y == y) {
+            return this.squares[i].size > 0;
         }
     }
-    return 0;
+    return false;
 };
 
 Board.prototype.numberOfSquares = function (size) {
@@ -50,13 +85,15 @@ Board.prototype.numberOfSquares = function (size) {
 };
 
 Board.prototype.squareAt = function (x, y) {
-    for (var i = 0; i < this.squares.length; i++) {
+    var i;
+
+    for (i = 0; i < this.squares.length; i++) {
         if (this.squares[i].x == x && this.squares[i].y == y) {
             return this.squares[i];
         }
     }
 
-    for (var i = 0; i < this.aux.length; i++) {
+    for (i = 0; i < this.aux.length; i++) {
         if (this.aux[i].x == x && this.aux[i].y == y) {
             return this.aux[i];
         }
@@ -65,24 +102,22 @@ Board.prototype.squareAt = function (x, y) {
     return null;
 };
 
-Board.prototype.auxOf = function (square) {
-    var squares = [];
-    for (var i = 0; i < this.aux.length; i++) {
-        if (this.aux[i].mainX == square.x && this.aux[i].mainY == square.y) {
-            squares.push(this.aux[i]);
-        }
-    }
+Board.prototype.squareSize = function (x, y) {
+    var i;
 
-    return squares;
-};
-
-Board.prototype.isSquareExist = function (x, y) {
-    for (var i = 0; i < this.squares.length; i++) {
+    for (i = 0; i < this.squares.length; i++) {
         if (this.squares[i].x == x && this.squares[i].y == y) {
-            return this.squares[i].size > 0;
+            return this.squares[i].size;
         }
     }
-    return false;
+
+    for (i = 0; i < this.aux.length; i++) {
+        if (this.aux[i].x == x && this.aux[i].y == y) {
+            return this.aux[i].mainSize;
+        }
+    }
+
+    return 0;
 };
 
 Board.prototype.removeSquare = function (x, y) {
@@ -93,12 +128,42 @@ Board.prototype.removeSquare = function (x, y) {
     }
 };
 
-Board.prototype.findRootSquare = function (square) {
-    if (!square.mainX) {
-        return square;
+/**
+ * Advanced: neighbors, range, path
+ */
+
+Board.prototype.areNeighbors = function (a, b) {
+    if (a.sameSquare(b)) {
+        return false;
     }
 
-    return this.squareAt(square.mainX, square.mainY);
+    var neighborsOfA = board.findNeighbors(a);
+    for (var i = 0; i < neighborsOfA.length; i++) {
+        if (neighborsOfA[i].sameSquare(b)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+Board.prototype.calculateRange = function (square) {
+    this.inRange = [square];
+
+    this.findInRange(square);
+
+    return this.inRange;
+};
+
+Board.prototype.findInRange = function (square) {
+    var neighbors = this.findNeighbors(square);
+    for (var i = 0; i < neighbors.length; i++) {
+        if (!neighbors[i].rootInSameArray(this.inRange)) {
+            this.inRange.push(neighbors[i]);
+            if (neighbors[i].owner == square.owner)
+                this.findInRange(neighbors[i]);
+        }
+    }
 };
 
 Board.prototype.findNeighbors = function (square) {
@@ -134,23 +199,58 @@ Board.prototype.findNeighbors = function (square) {
     return neighbors;
 };
 
-Board.prototype.calculateRange = function (square) {
-    this.inRange = [square];
+Board.prototype.findPath = function (a, b) {
+    a = this.findRootSquare(a);
+    b = this.findRootSquare(b);
 
-    this.findInRange(square);
+    // Lee algo for finding shortest path in grid
+    a.traversePriority = 0;
 
-    return this.inRange;
-};
+    var pathQueue = [];
+    pathQueue.push(a);
 
-Board.prototype.findInRange = function (square) {
-    var neighbors = this.findNeighbors(square);
-    for (var i = 0; i < neighbors.length; i++) {
-        if (!neighbors[i].rootInSameArray(this.inRange)) {
-            this.inRange.push(neighbors[i]);
-            if (neighbors[i].owner == square.owner)
-                this.findInRange(neighbors[i]);
+    var neighbors, i, neighbor;
+
+    // mark everything i can get my hands on
+    while (pathQueue.length > 0) {
+        var nodeSquare = pathQueue.shift();
+
+        if (this.areNeighbors(nodeSquare, b)) {
+            b.traversePriority = nodeSquare.traversePriority + 1;
+            break;
+        }
+
+        neighbors = this.findNeighbors(nodeSquare);
+        for (i = 0; i < neighbors.length; i++) {
+            neighbor = neighbors[i];
+            if (neighbor.traversePriority === -1 && a.owner === neighbor.owner) {
+                neighbor.traversePriority = nodeSquare.traversePriority + 1;
+                pathQueue.push(neighbors[i]);
+            }
         }
     }
+
+    var priority = b.traversePriority, path = [], backtrackSquare = b;
+    // backtrack from b to a
+    while (priority > 0) {
+        neighbors = this.findNeighbors(backtrackSquare);
+        for (i = 0; i < neighbors.length; i++) {
+            neighbor = neighbors[i];
+            if (neighbor.traversePriority === priority - 1) {
+                path.push(neighbor);
+                priority--;
+                backtrackSquare = neighbor;
+                break;
+            }
+        }
+    }
+
+    // reset the priorities
+    for (i = 0; i < this.squares.length; i++) {
+        this.squares[i].traversePriority = -1;
+    }
+
+    return path;
 };
 
 Board.prototype.isInRange = function (a, b) {
@@ -168,89 +268,9 @@ Board.prototype.isInRange = function (a, b) {
     return false;
 };
 
-Board.prototype.areNeighbors = function (a, b) {
-    if (a.sameSquare(b)) {
-        return false;
-    }
-
-    var neighborsOfA = board.findNeighbors(a);
-    for (var i = 0; i < neighborsOfA.length; i++) {
-        if (neighborsOfA[i].sameSquare(b)) {
-            return true;
-        }
-    }
-
-    return false;
-};
-
-Board.prototype.findPath = function (a, b) {
-    a = this.findRootSquare(a);
-    b = this.findRootSquare(b);
-
-    // Lee algo for finding shortest path in grid
-    a.traversePriority = 0;
-
-    var pathQueue = [];
-    pathQueue.push(a);
-
-    // mark everything i can get my hands on
-    while (pathQueue.length > 0) {
-        var nodeSquare = pathQueue.shift();
-
-        if (this.areNeighbors(nodeSquare, b)) {
-            b.traversePriority = nodeSquare.traversePriority + 1;
-            break;
-        }
-
-        var neighbors = this.findNeighbors(nodeSquare);
-        for (var i = 0; i < neighbors.length; i++) {
-            var neighbor = neighbors[i];
-            if (neighbor.traversePriority == -1 && a.owner == neighbor.owner) {
-                neighbor.traversePriority = nodeSquare.traversePriority + 1;
-                pathQueue.push(neighbors[i]);
-            }
-        }
-    }
-
-    var priority = b.traversePriority, path = [], backtrackSquare = b;
-    // backtrack from b to a
-    while (priority > 0) {
-        var neighbors = this.findNeighbors(backtrackSquare);
-        var minPriority = b.traversePriority;
-        for (var i = 0; i < neighbors.length; i++) {
-            var neighbor = neighbors[i];
-            if (neighbor.traversePriority == priority - 1) {
-                path.push(neighbor);
-                priority--;
-                backtrackSquare = neighbor;
-                break;
-            }
-        }
-    }
-
-    // reset the priorities
-    for (var i = 0; i < this.squares.length; i++) {
-        this.squares[i].traversePriority = -1;
-    }
-
-    return path;
-};
-
-Board.prototype.incomeTick = function () {
-    var incomeSquares = [];
-
-    for (var i = 0; i < this.squares.length; i++) {
-        var square = this.squares[i];
-        var income = square.size * square.size * this.speed;
-
-        if (square.owner != -1) {
-            square.points += income;
-            incomeSquares.push(square);
-        }
-    }
-
-    return incomeSquares;
-};
+/**
+ * Square model
+ */
 
 function Square(json) {
     this.x = json.x;
@@ -265,7 +285,7 @@ function Square(json) {
     this.mainSize = json.mainSize;
 
     this.traversePriority = json.traversePriority;
-};
+}
 
 Square.prototype.equals = function (other) {
     return this.x == other.x && this.y == other.y;
@@ -306,20 +326,4 @@ Square.prototype.rootInSameArray = function (arr) {
         }
     }
     return false;
-};
-
-/**
- * Utilities
- */
-
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-
-function printPath(path) {
-    var display = '';
-    for (var i = path.length - 1; i >= 0; i--) {
-        display += path[i].x + ',' + path[i].y + ' -> ';
-    }
-    return display + 'end';
 };
