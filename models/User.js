@@ -4,7 +4,7 @@ function User(name, id, color) {
     this.name = name;
     this.color = color;
     this.id = id;
-};
+}
 
 User.prototype.init = function (board) {
     // get a square
@@ -18,4 +18,4 @@ User.prototype.init = function (board) {
 
 User.prototype.destroy = function (board) {
     return board.scrubUser(this.id);
-}
+};
