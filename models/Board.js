@@ -2,11 +2,12 @@ module.exports = Board;
 
 var Square = require('./Square.js');
 
-function Board(width, height, mediums, larges) {
+function Board(width, height, mediums, larges, speed) {
     this.width = width;
     this.height = height;
     this.mediums = mediums;
     this.larges = larges;
+    this.speed = speed;
 
     this.squares = [];
     this.aux = [];
@@ -339,6 +340,16 @@ Board.prototype.findPath = function (a, b) {
     }
 
     return path;
+};
+
+Board.prototype.incomeTick = function () {
+    for (var i = 0; i < this.squares.length; i++) {
+        var square = this.squares[i];
+        var income = square.size * square.size * this.speed;
+
+        if (square.owner != -1)
+            square.points += income;
+    }
 };
 
 Board.prototype.emptySmallSquares = function () {

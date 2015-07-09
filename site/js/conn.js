@@ -71,6 +71,9 @@ socket.on('connect', function () {
 });
 
 socket.on('update board', function (msg) {
+    if (!board)
+        return;
+
     if (msg.squares) {
         for (var i = 0; i < msg.squares.length; i++) {
             var square = msg.squares[i];
@@ -100,9 +103,11 @@ socket.on('send squares', function (msg) {
             square.sprite = redrawSquareOwner(square);
         }
 
-        square.points = msg[i].points;
-        if (square.pointText)
-            redrawGridText(square);
+        if (square.points != msg[i].points) {
+            square.points = msg[i].points;
+            if (square.pointText)
+                redrawGridText(square);
+        }
     }
 
     renderer.render(stage);
@@ -111,6 +116,7 @@ socket.on('send squares', function (msg) {
 socket.on('send board', function (msg) {
     board = new Board(msg);
     redrawBoard();
+    incomeClock();
 });
 
 socket.on('send local user', function (msg) {
@@ -238,6 +244,9 @@ function redrawSquareOwner(square) {
  */
 
 function redrawBoard() {
+    if (!board)
+        return;
+
     // Debug grid numbers
     var loader = new PIXI.loaders.Loader();
     loader.add('Arial', 'fonts/Arial.fnt');
@@ -406,6 +415,14 @@ function moveTroops(distance, from, to) {
         return;
     }
 
+    if (from.points >= troops) {
+        from.points -= troops;
+        redrawGridText(from);
+        renderer.render(stage);
+    } else {
+        return;
+    }
+
     // assume valid move
     if (to.owner == from.owner) { // friendly
         transfer(troops, from, to, attackTickRate * (distance));
@@ -418,8 +435,6 @@ function moveTroops(distance, from, to) {
 
 function attack(times, from, to, rate) {
     var startTime = new Date().getTime();
-    var fromPoints = from.points;
-    var toPoints = to.points;
     var lastTickElapsed = 0;
 
     var timer = setInterval(function () {
@@ -461,10 +476,10 @@ function attack(times, from, to, rate) {
                 return;
             }
 
-            from.points += lastTickElapsed - ticksElapsed;
+            //from.points += lastTickElapsed - ticksElapsed;
             to.points += lastTickElapsed - ticksElapsed;
 
-            redrawGridText(from);
+            //redrawGridText(from);
             redrawGridText(to);
 
             renderer.render(stage);
@@ -486,8 +501,6 @@ function attack(times, from, to, rate) {
 
 function transfer(times, from, to, rate) {
     var startTime = new Date().getTime();
-    var fromPoints = from.points;
-    var toPoints = to.points;
     var lastTickElapsed = 0;
 
     var timer = setInterval(function () {
@@ -515,10 +528,10 @@ function transfer(times, from, to, rate) {
                 return;
             }
 
-            from.points += lastTickElapsed - ticksElapsed;
+            //from.points += lastTickElapsed - ticksElapsed;
             to.points -= lastTickElapsed - ticksElapsed;
 
-            redrawGridText(from);
+            //redrawGridText(from);
             redrawGridText(to);
 
             renderer.render(stage);
@@ -599,7 +612,7 @@ var tick = function () {
         return;
     }
 
-    var originalX = grid.position.x, originalY = grid.position.y, MARGINS = 100;
+    var originalX = grid.position.x, originalY = grid.position.y, MARGINS = 500;
 
     grid.position.x += deltaX;
     grid.position.y += deltaY;
@@ -676,11 +689,33 @@ document.onkeyup = function (e) {
     }
 }
 
+function incomeClock() {
+    var startTime = new Date().getTime();
+    var lastTickElapsed = 0;
+
+    var timer = setInterval(function () {
+        var timeElapsed = new Date().getTime() - startTime;
+        var ticksElapsed = Math.floor(timeElapsed / 1000);
+
+        var incomeSquares = [];
+
+        while (ticksElapsed - lastTickElapsed > 0) {
+            if (board)
+                incomeSquares = incomeSquares.concat(board.incomeTick());
+
+            lastTickElapsed++;
+        }
+
+        for (var i = 0; i < incomeSquares.length; i++)
+            redrawGridText(incomeSquares[i]);
+        renderer.render(stage);
+    }, 500);
+};
+
 window.addEventListener('resize', function (e) {
     // redraw canvas
     redrawBoard();
 });
-
 
 /**
  * Utilities

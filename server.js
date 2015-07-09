@@ -15,7 +15,7 @@ var User = require('./models/User.js');
  * Game Init
  */
 
-var board = new Board(40, 40, 40, 10);
+var board = new Board(40, 40, 40, 10, 1);
 board.init();
 
 var attackTickRate = 100;
@@ -89,13 +89,23 @@ io.sockets.on('connection', function (socket) {
 setInterval(function () {
     if (updateQueue.squares.length > 0) {
         io.sockets.emit('update board', {squares: updateQueue.squares});
-        console.log('updating');
         updateQueue.squares = [];
     }
 }, 50);
 
 setInterval(function () {
-    io.sockets.emit('send squares', board.squares);
+    if (board)
+        board.incomeTick();
+}, 1000);
+
+setInterval(function () {
+    if (board) {
+        var cleanSquares = [];
+        for (var i = 0; i < board.squares.length; i++) {
+            cleanSquares.push(cleanSquare(board.squares[i]));
+        }
+        io.sockets.emit('send squares', cleanSquares);
+    }
 }, 5000);
 
 /**
@@ -112,6 +122,12 @@ function moveTroops(distance, from, to, troops) {
         return;
     }
 
+    if (from.points >= troops) {
+        from.points -= troops;
+    } else {
+        return;
+    }
+
     // assume valid move
     if (to.owner == from.owner) { // friendly
         transfer(troops, from, to, attackTickRate * (distance));
@@ -123,8 +139,6 @@ function moveTroops(distance, from, to, troops) {
 
 function attack(times, from, to, rate) {
     var startTime = new Date().getTime();
-    var fromPoints = from.points;
-    var toPoints = to.points;
     var lastTickElapsed = 0;
 
     var timer = setInterval(function () {
@@ -135,7 +149,6 @@ function attack(times, from, to, rate) {
             ticksElapsed = times;
 
         while (ticksElapsed - lastTickElapsed > 0) {
-
             if (from.points <= 0) {
                 for (var i = 0; i < from.moving.length; i++) {
                     if (from.moving[i].sameSquare(to)) {
@@ -165,10 +178,10 @@ function attack(times, from, to, rate) {
                 return;
             }
 
-            from.points += lastTickElapsed - ticksElapsed;
+            //from.points += lastTickElapsed - ticksElapsed;
             to.points += lastTickElapsed - ticksElapsed;
 
-            updateSquare(from);
+            //updateSquare(from);
             updateSquare(to);
 
             lastTickElapsed++;
@@ -187,8 +200,6 @@ function attack(times, from, to, rate) {
 
 function transfer(times, from, to, rate) {
     var startTime = new Date().getTime();
-    var fromPoints = from.points;
-    var toPoints = to.points;
     var lastTickElapsed = 0;
 
     var timer = setInterval(function () {
@@ -220,10 +231,10 @@ function transfer(times, from, to, rate) {
                 return;
             }
 
-            from.points += lastTickElapsed - ticksElapsed;
+            //from.points += lastTickElapsed - ticksElapsed;
             to.points -= lastTickElapsed - ticksElapsed;
 
-            updateSquare(from);
+            //updateSquare(from);
             updateSquare(to);
 
             lastTickElapsed++;
@@ -241,7 +252,16 @@ function transfer(times, from, to, rate) {
 }
 
 function updateSquare(square) {
-    updateQueue.squares.push({x: square.x, y: square.y, points: square.points, owner: square.owner});
+    updateQueue.squares.push(cleanSquare(square));
+}
+
+function cleanSquare(square) {
+    var newSquare = {};
+    newSquare.x = square.x;
+    newSquare.y = square.y;
+    newSquare.owner = square.owner;
+    newSquare.points = square.points;
+    return newSquare;
 }
 
 /**

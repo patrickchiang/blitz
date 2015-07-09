@@ -3,6 +3,7 @@ function Board(json) {
     this.height = json.height;
     this.mediums = json.mediums;
     this.larges = json.larges;
+    this.speed = json.speed;
 
     this.squares = [];
     this.aux = [];
@@ -233,6 +234,22 @@ Board.prototype.findPath = function (a, b) {
     }
 
     return path;
+};
+
+Board.prototype.incomeTick = function () {
+    var incomeSquares = [];
+
+    for (var i = 0; i < this.squares.length; i++) {
+        var square = this.squares[i];
+        var income = square.size * square.size * this.speed;
+
+        if (square.owner != -1) {
+            square.points += income;
+            incomeSquares.push(square);
+        }
+    }
+
+    return incomeSquares;
 };
 
 function Square(json) {
