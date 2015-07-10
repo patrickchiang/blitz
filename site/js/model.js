@@ -57,6 +57,9 @@ Board.prototype.incomeTick = function () {
             square.points += income;
             incomeSquares.push(square);
         }
+
+        if (square.points > 200)
+            square.points = 200;
     }
 
     return incomeSquares;

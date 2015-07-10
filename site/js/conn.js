@@ -536,10 +536,7 @@ function attack(times, from, to, rate) {
                 return;
             }
 
-            //from.points += lastTickElapsed - ticksElapsed;
             to.points += lastTickElapsed - ticksElapsed;
-
-            //redrawGridText(from);
             redrawGridText(to);
 
             renderer.render(stage);
@@ -588,10 +585,9 @@ function transfer(times, from, to, rate) {
                 return;
             }
 
-            //from.points += lastTickElapsed - ticksElapsed;
             to.points -= lastTickElapsed - ticksElapsed;
-
-            //redrawGridText(from);
+            if (to.points > 200)
+                to.points = 200;
             redrawGridText(to);
 
             renderer.render(stage);

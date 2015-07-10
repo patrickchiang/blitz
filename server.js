@@ -181,10 +181,7 @@ function attack(times, from, to, rate) {
                 return;
             }
 
-            //from.points += lastTickElapsed - ticksElapsed;
             to.points += lastTickElapsed - ticksElapsed;
-
-            //updateSquare(from);
             updateSquare(to);
 
             lastTickElapsed++;
@@ -234,10 +231,9 @@ function transfer(times, from, to, rate) {
                 return;
             }
 
-            //from.points += lastTickElapsed - ticksElapsed;
             to.points -= lastTickElapsed - ticksElapsed;
-
-            //updateSquare(from);
+            if (to.points > 200)
+                to.points = 200;
             updateSquare(to);
 
             lastTickElapsed++;

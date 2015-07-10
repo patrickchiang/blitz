@@ -141,6 +141,9 @@ Board.prototype.incomeTick = function () {
 
         if (square.owner != -1)
             square.points += income;
+
+        if (square.points > 200)
+            square.points = 200;
     }
 };
 
